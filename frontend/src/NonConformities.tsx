@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useState, type FormEvent} from 'react';
 import type {User, Lot, NonConformity, Hold} from './types';
 
 type Props = {
@@ -15,7 +15,7 @@ export function NonConformities({lot,user,cases,holds,owners,disabled,onCommand}
   const [reason,setReason] = useState('');
   const [evidence,setEvidence] = useState('');
   const terminal = lot.qualityState === 'REJECTED';
-  async function open(e: React.FormEvent) {
+  async function open(e: FormEvent) {
     e.preventDefault();
     if(await onCommand(`/lots/${lot.id}/nonconformities`,{origin,responsible,reason,evidence},'Abrir NC y bloquear')) {
       setReason('');setEvidence('');

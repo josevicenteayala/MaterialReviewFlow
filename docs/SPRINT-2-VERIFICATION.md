@@ -47,3 +47,14 @@ El workflow usa Ubuntu 24.04, PostgreSQL desechable para Maven y **otro** Postgr
 - Consulta fallida después de POST confirmado nunca genera reintento de mutación.
 
 No se verifican montajes, mezclas, sublotes, ejecución de devolución/baja, adjuntos binarios ni sistemas corporativos; continúan fuera de alcance.
+
+## Ajustes por revisión del PR
+
+Revisión del 12 de noviembre de 2026:
+
+- [N+1 en NcStore.list](https://github.com/josevicenteayala/MaterialReviewFlow/pull/1#discussion_r4546820353): sustituida la consulta por expediente por una sola lectura conjunta de dictámenes filtrada por lote. El repositorio ejecuta dos consultas cuando hay NC y una cuando no hay ninguna; el endpoint añade su consulta de validación del lote. Se conserva el orden de NC y dictámenes, las NC sin dictamen y la transacción REPEATABLE_READ existente.
+- [Importación de FormEvent](https://github.com/josevicenteayala/MaterialReviewFlow/pull/1#discussion_r4546820307): importación de tipo explícita desde React. La configuración anterior compilaba por el namespace de @types/react; la importación explícita mejora claridad sin cambiar el runtime.
+- Nueva prueba `NcStoreQueryCountTest` sobre PostgreSQL real, en un esquema sintético propio: lotes con 0, 1 y 10 NC; conteo de SELECT preparados mediante instrumentación JDBC que delega al driver real; orden con empates de versión/ID, contenido completo de dictámenes, NC sin opiniones y separación de otro lote. No introduce dependencias ni instrumentación de producción.
+- Ejecutado localmente: prueba nueva aprobada, suite completa `mvn verify` con **19 pruebas aprobadas**, cero fallos/errores/omitidas; `tsc -b --force` y `npm run build` aprobados. Base nueva `proco_review_test` en el PostgreSQL aislado del proyecto proco-sprint2; no se utilizaron datos de la demo existente. Docker volvió a responder sin reiniciarlo desde esta tarea.
+
+Los resultados de CI/Playwright de este ajuste se adjuntan por commit en el PR; los resultados anteriores siguen referidos a sus respectivas ejecuciones, sin anticipar el resultado de una ejecución posterior. No cambian el contrato JSON, las migraciones ni las reglas de negocio.
