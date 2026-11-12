@@ -39,6 +39,7 @@ public class NcService {
                 require(c.origin()!=null && Set.of("DOCUMENTARY","LABORATORY","POST_RELEASE","OTHER").contains(c.origin()),422,"Origen de NC inválido");
                 require(!"POST_RELEASE".equals(c.origin()) || lot.qualityState().equals("RELEASED"),422,"Origen posterior requiere lote liberado");
                 require(c.responsible()!=null && db.queryForObject("select count(*) from app_user where username=? and role='QUALITY'",Integer.class,c.responsible())==1,422,"El responsable debe ser un usuario de Calidad existente");
+                require(!actor.equals(c.responsible()),422,"Asigna un responsable distinto del reportante para permitir decisión independiente");
                 caseId=UUID.randomUUID();
                 db.update("insert into non_conformity(id,lot_id,origin,responsible,opened_by,reason,evidence) values (?,?,?,?,?,?,?)",
                         caseId,lotId,c.origin(),c.responsible(),actor,c.reason(),c.evidence());

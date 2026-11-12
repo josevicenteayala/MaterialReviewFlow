@@ -20,7 +20,7 @@ public class WorkflowService {
   return runner.run(id,key,actor,role,fingerprint,()->{
    String expected=switch(action){case "create","available"->"WAREHOUSE";case "inspect"->"QUALITY";case "sample"->"QUALITY,WAREHOUSE";case "test"->"LAB_TECH";case "release"->"LAB_APPROVER";default->throw new RuleException(404,"Acción inexistente");};
    require(Arrays.asList(expected.split(",")).contains(role),403,"El rol no está autorizado para esta acción");
-   if(action.equals("create"))return create(c,key,actor,role,fingerprint);
+   if(action.equals("create"))return create(c,key,actor,role);
    Lot l=runner.lock(id,c.version());
    require(!l.qualityState().equals("REJECTED"),409,"El rechazo es definitivo; el lote no admite más transiciones");
    switch(action){
@@ -38,7 +38,7 @@ public class WorkflowService {
    Lot result=runner.advance(id,c.version());audit.append(id,actor,role,action.toUpperCase(),state(l),state(result),c.reason(),c.evidence(),key,c.toString());return result;
   });
  }
- private Lot create(Command c,UUID key,String actor,String role,String fingerprint){
+ private Lot create(Command c,UUID key,String actor,String role){
   require(c.version()==0,409,"Una recepción nueva requiere versión 0");
   require(c.orderCode()!=null && c.supplierLot()!=null&&!c.supplierLot().isBlank()&&c.productionDate()!=null&&c.quantity()!=null&&c.location()!=null&&!c.location().isBlank(),422,"Faltan OC, lote, fecha, cantidad o ubicación");
   require(!c.productionDate().isAfter(LocalDate.now(java.time.ZoneOffset.UTC)),422,"La fecha de fabricación no puede ser futura");

@@ -16,7 +16,7 @@ public class AuditLog {
  @Transactional(propagation=Propagation.REQUIRES_NEW)
  public void denied(UUID lot,String actor,String role,String reason,UUID correlation,String payload){
   UUID existing=lot!=null && Boolean.TRUE.equals(db.queryForObject("select exists(select 1 from lot where id=?)",Boolean.class,lot))?lot:null;
-  append(existing,actor,role,"COMMAND_DENIED",null,null,reason,"Intento rechazado",correlation,payload);
+  append(existing,actor,role,"COMMAND_DENIED",null,null,reason,"Intento rechazado",correlation,payload,payload.startsWith("NC:")?"SIM-2":"SIM-1");
  }
  public List<Map<String,Object>> timeline(UUID lot){return db.queryForList("select * from audit_event where lot_id=? order by occurred_at,id",lot);}
 }

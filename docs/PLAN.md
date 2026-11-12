@@ -12,7 +12,7 @@ Registrado antes de implementar, 11 de noviembre de 2026. Fuentes: `requirements
 | Autoridad real de liberación | LAB_APPROVER distinto de LAB_TECH; Calidad verifica documentación, Almacén confirma disponibilidad. |
 | Evidencias | Texto obligatorio con referencia ficticia de documento/checklist, sin adjuntos binarios. Se preserva cada comando íntegro en auditoría. |
 | Recepción incompleta | Datos críticos obligatorios al crear; hallazgo documental puede retener y bloquear. |
-| RETENIDO → pruebas/liberación | Calidad reinspecciona favorablemente y retira bloqueo previo; se exige muestra y nuevos ensayos si hubo fallo. No liberación directa desde RETENIDO. |
+| RETENIDO → pruebas/liberación | Sprint 1 retiraba el bloqueo al reinspeccionar. Sustituido en Sprint 2: reinspección y ensayo conservan BLOCKED hasta decisión explícita de Calidad en una NC; después se requiere liberación independiente. |
 | Rechazo formal y NC | Fuera de entrega 1; un resultado fuera de rango retiene y bloquea. No se implementa disposición comercial sin expediente NC. |
 | Usuarios y administración | Cuentas ficticias con BCrypt, autenticación HTTP Basic en entorno local; sin autoasignación de rol ni endpoint administrador. |
 | RECIBIDO vs EN_VERIFICACION | Alta registra evento de recepción y deja lote UNDER_VERIFICATION, inventario QUARANTINE. |
@@ -41,3 +41,11 @@ NC posterior, revocación y contención de montajes, avisos persistentes con acu
 ## Sprint 2 — alcance acordado para esta implementación
 
 El [plan técnico de Sprint 2](SPRINT-2.md) reemplaza únicamente el supuesto de desbloqueo por reinspección: una reinspección favorable conserva bloqueos, que requieren decisión explícita y auditable. El sprint añade NC formal, dictámenes, rechazo definitivo y bloqueo posterior a liberación; reutiliza retenciones/reinspecciones existentes. Sublotes, adjuntos de archivo y devolución física siguen pendientes. Se trabaja en rama y se prepara PR sin merge, con datos de verificación aislados.
+
+### Entregas de Sprint 2
+
+- Diseño previo: commit `7d2d8c5`, decisiones y riesgos en [SPRINT-2.md](SPRINT-2.md).
+- Dominio/API: commit `d50e965`; V3, NC y bloqueos identificados. Primera verificación local: 17 pruebas de backend aprobadas sobre PostgreSQL aislado; la entrega de UI agrega una prueba unitaria adicional y requiere nueva verificación conjunta.
+- Interfaz y verificación final: expediente, dictámenes, disposición y reintentos con clave/cuerpo congelados por identidad. La ejecución final y limitaciones se registran en [SPRINT-2-VERIFICATION.md](SPRINT-2-VERIFICATION.md).
+
+No se repiten retenciones ni reinspecciones básicas. Se amplía el bloqueo posterior sobre inventario sin borrar la liberación histórica. El rechazo cambia el estado técnico actual a REJECTED y conserva todos los eventos anteriores. Continúan pendientes sublotes, devolución/baja física, evidencia binaria, mezclas y contención de montajes.

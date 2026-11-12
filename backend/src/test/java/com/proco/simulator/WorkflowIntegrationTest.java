@@ -149,11 +149,12 @@ class WorkflowIntegrationTest {
  @Test void ncRolesOwnerAndSegregationAreEnforced()throws Exception{
   UUID id=released(false);
   assertEquals(422,ncAction(id,null,"almacen","open",version(id),",\"origin\":\"OTHER\",\"responsible\":\"tecnico\"").status);
-  UUID nc=openNc(id,"calidad","calidad","OTHER");
+  assertEquals(422,ncAction(id,null,"calidad","open",version(id),",\"origin\":\"OTHER\",\"responsible\":\"calidad\"").status);
+  UUID nc=openNc(id,"calidad","calidad2","OTHER");
   assertEquals(403,ncAction(id,nc,"calidad","opinion",version(id),",\"outcome\":\"CONFORMING\"").status);
   opinion(id,nc,"CONFORMING");
-  assertEquals(422,ncAction(id,nc,"calidad","resolve",version(id),",\"disposition\":\"LIFT_HOLD\"").status);
-  assertEquals(403,ncAction(id,nc,"calidad2","resolve",version(id),",\"disposition\":\"LIFT_HOLD\"").status);
+  assertEquals(403,ncAction(id,nc,"calidad","resolve",version(id),",\"disposition\":\"LIFT_HOLD\"").status);
+  assertEquals(200,ncAction(id,nc,"calidad2","resolve",version(id),",\"disposition\":\"LIFT_HOLD\"").status);
   assertEquals(403,ncAction(id,nc,"tecnico","reject",version(id),",\"disposition\":\"SCRAP\"").status);
   UUID other=released(false),independent=openNc(other,"calidad","calidad2","OTHER");opinion(other,independent,"CONFORMING");
   assertEquals(200,ncAction(other,independent,"calidad2","resolve",version(other),",\"disposition\":\"LIFT_HOLD\"").status);
