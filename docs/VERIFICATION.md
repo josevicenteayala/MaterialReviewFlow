@@ -36,4 +36,4 @@ Ejecutada localmente el 11 de noviembre de 2026 (America/Bogota). No representa 
 - BR-09 y BR-13: no se aplican umbrales temporales ni aprobaciones automáticas.
 - S01 completo; S02 y S04–S05 parciales según alcance. S03 usa guarda de saldo, sin resolución comercial de diferencias. S06–S10 completos quedan pendientes.
 
-CI preparada en `.github/workflows/verify.yml`; todavía no ejecutada en un servicio remoto. No se verificaron integraciones corporativas, adjuntos, SSO, mezclas, consumo ni NC posterior porque no forman parte de la primera entrega.
+CI publicada en `.github/workflows/verify.yml`. La primera ejecución en GitHub aprobó las 7 pruebas backend y la compilación frontend; el instalador de Chromium falló porque `ubuntu-latest` seleccionó Ubuntu 26.04, no compatible con Playwright 1.56.1. Se fijó el runner en Ubuntu 24.04 para mantener compatibilidad reproducible. No se verificaron integraciones corporativas, adjuntos, SSO, mezclas, consumo ni NC posterior porque no forman parte de la primera entrega.

@@ -2,7 +2,8 @@ name: Verify first delivery
 on: [push, pull_request]
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    # Keep the runner compatible with the pinned Playwright browser dependencies.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:17-alpine
