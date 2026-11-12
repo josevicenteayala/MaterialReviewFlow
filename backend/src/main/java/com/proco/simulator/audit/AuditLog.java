@@ -7,7 +7,12 @@ import java.util.*;
 public class AuditLog {
  private final JdbcTemplate db;
  public AuditLog(JdbcTemplate db){this.db=db;}
- public void append(UUID lot,String actor,String role,String event,String from,String to,String reason,String evidence,UUID correlation,String payload){db.update("insert into audit_event(id,lot_id,actor,role,event_type,from_state,to_state,reason,evidence,rule_version,correlation_id,payload) values (?,?,?,?,?,?,?,?,?,'SIM-1',?,?)",UUID.randomUUID(),lot,actor,role,event,from,to,reason,evidence,correlation,payload);}
+ public void append(UUID lot,String actor,String role,String event,String from,String to,String reason,String evidence,UUID correlation,String payload){
+  append(lot,actor,role,event,from,to,reason,evidence,correlation,payload,"SIM-1");
+ }
+ public void append(UUID lot,String actor,String role,String event,String from,String to,String reason,String evidence,UUID correlation,String payload,String ruleVersion){
+  db.update("insert into audit_event(id,lot_id,actor,role,event_type,from_state,to_state,reason,evidence,rule_version,correlation_id,payload) values (?,?,?,?,?,?,?,?,?,?,?,?)",UUID.randomUUID(),lot,actor,role,event,from,to,reason,evidence,ruleVersion,correlation,payload);
+ }
  @Transactional(propagation=Propagation.REQUIRES_NEW)
  public void denied(UUID lot,String actor,String role,String reason,UUID correlation,String payload){
   UUID existing=lot!=null && Boolean.TRUE.equals(db.queryForObject("select exists(select 1 from lot where id=?)",Boolean.class,lot))?lot:null;
