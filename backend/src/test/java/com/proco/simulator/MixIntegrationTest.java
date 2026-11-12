@@ -40,8 +40,9 @@ class MixIntegrationTest {
  }
  JsonNode good(String user,String path,Map<String,Object> body)throws Exception{var r=call(user,path,body,UUID.randomUUID());assertEquals(200,r.status,r.raw);return r.data;}
  Map<String,Object> data(long version,Map<String,Object> extra){var m=new LinkedHashMap<String,Object>();m.put("version",version);m.put("reason","Prueba Sprint 3");m.put("evidence","EV-S3");m.putAll(extra);return m;}
- UUID lot(String order)throws Exception{
-  var result=good("almacen","/receipts",data(0,Map.of("orderCode",order,"supplierLot","S3-"+UUID.randomUUID(),"productionDate","2026-01-01","quantity",1,"location","Q-S3")));
+ UUID lot(String order)throws Exception{return lot(order,"2026-01-01");}
+ UUID lot(String order,String productionDate)throws Exception{
+  var result=good("almacen","/receipts",data(0,Map.of("orderCode",order,"supplierLot","S3-"+UUID.randomUUID(),"productionDate",productionDate,"quantity",1,"location","Q-S3")));
   UUID id=UUID.fromString(result.get("id").asText());
   String[] users={"calidad","almacen","tecnico","aprobador","almacen"},actions={"inspect","sample","test","release","available"};
   List<Map<String,Object>> extra=List.of(Map.of("conforms",true),Map.of("sampleCode","M-S3"),Map.of("resultValue",order.equals("OC-H-001")?15:500),Map.of(),Map.of());
@@ -116,5 +117,94 @@ class MixIntegrationTest {
   UUID id=mix(lot("OC-H-001"),lot("OC-H-001"));favorable(id);authorize(id);
   clock.value.set(clock.instant().plusSeconds(90000));var expired=get(id);assertEquals("AUTHORIZED",expired.get("status").asText());assertFalse(expired.get("usable").asBoolean());
   assertEquals(422,call("almacen","/mix-requests/"+id+"/authorization?montageCode="+expired.get("montageCode").asText(),null,null).status);
+ }
+
+ long lotVersion(UUID id){return db.queryForObject("select version from lot where id=?",Long.class,id);}
+ UUID nc(UUID lot,String reporter)throws Exception{
+  good(reporter,"/lots/"+lot+"/nonconformities",data(lotVersion(lot),Map.of("origin","POST_RELEASE","responsible","calidad")));
+  return db.queryForObject("select id from non_conformity where lot_id=? order by opened_at desc limit 1",UUID.class,lot);
+ }
+ void closeNc(UUID lot,UUID nc)throws Exception{
+  good("aprobador","/lots/"+lot+"/nonconformities/"+nc+"/opinion",data(lotVersion(lot),Map.of("outcome","CONFORMING")));
+  good("calidad","/lots/"+lot+"/nonconformities/"+nc+"/resolve",data(lotVersion(lot),Map.of("disposition","LIFT_HOLD")));
+  good("almacen","/lots/"+lot+"/available",data(lotVersion(lot),Map.of()));
+ }
+ @Test void s3_08_09NcRevokesAllAffectedMixesAndClosingDoesNotReactivate()throws Exception{
+  UUID a=lot("OC-H-001"),b=lot("OC-H-001");UUID first=mix(a,b),second=mix(b,a);favorable(first);favorable(second);authorize(first);authorize(second);
+  UUID caseId=nc(a,"tintoreria");
+  for(UUID id:List.of(first,second)){
+   var revoked=get(id);assertEquals("REVOKED",revoked.get("status").asText());assertFalse(revoked.get("usable").asBoolean());
+   assertEquals("produccion",revoked.get("approver").asText());assertFalse(revoked.get("decidedAt").isNull());assertEquals(5,revoked.get("version").asLong());
+   assertEquals(1,db.queryForObject("select count(*) from mix_event where mix_id=? and event_type='AUTHORIZED'",Integer.class,id));
+   assertEquals(1,db.queryForObject("select count(*) from mix_event where mix_id=? and event_type='REVOKED' and actor='tintoreria'",Integer.class,id));
+  }
+  assertEquals("BLOCKED",db.queryForObject("select inventory_state from lot where id=?",String.class,a));
+  closeNc(a,caseId);
+  assertEquals("REVOKED",get(first).get("status").asText());assertFalse(get(first).get("usable").asBoolean());
+  assertEquals(409,call("produccion","/mix-requests/"+first+"/decision",data(5,Map.of("decision","AUTHORIZE")),UUID.randomUUID()).status);
+  UUID fresh=mix(a,b);favorable(fresh);assertTrue(authorize(fresh).get("usable").asBoolean());
+ }
+ @Test void stalePendingRequestCannotReuseConceptsAfterLotReevaluation()throws Exception{
+  UUID a=lot("OC-H-001"),b=lot("OC-H-001"),id=mix(a,b);favorable(id);
+  UUID caseId=nc(a,"geo");
+  assertEquals(422,call("tejeduria","/mix-requests",requestBody(a,b),UUID.randomUUID()).status);
+  closeNc(a,caseId);assertEquals("UNDER_REVIEW",get(id).get("status").asText());
+  assertEquals(422,call("produccion","/mix-requests/"+id+"/decision",data(version(id),Map.of("decision","AUTHORIZE")),UUID.randomUUID()).status);
+  assertTrue(get(id).get("materialBlockers").toString().contains("versión"));
+ }
+ @Test void s3_10ConcurrentNcAndApprovalCannotLeaveUsableAuthorization()throws Exception{
+  var pool=Executors.newFixedThreadPool(2);
+  try{
+   for(int i=0;i<4;i++){
+    UUID a=lot("OC-H-001"),b=lot("OC-H-001"),id=mix(a,b);favorable(id);long v=version(id),lv=lotVersion(a);
+    var start=new CountDownLatch(1);
+    var approve=pool.submit(()->{start.await();return call("produccion","/mix-requests/"+id+"/decision",data(v,Map.of("decision","AUTHORIZE")),UUID.randomUUID());});
+    var block=pool.submit(()->{start.await();return call("geo","/lots/"+a+"/nonconformities",data(lv,Map.of("origin","POST_RELEASE","responsible","calidad")),UUID.randomUUID());});
+    start.countDown();var ar=approve.get(15,TimeUnit.SECONDS);var br=block.get(15,TimeUnit.SECONDS);
+    assertEquals(200,br.status,br.raw);assertTrue(Set.of(200,409,422).contains(ar.status),ar.raw);
+    var result=get(id);assertFalse(result.get("usable").asBoolean());assertTrue(Set.of("UNDER_REVIEW","REVOKED").contains(result.get("status").asText()));
+    assertEquals("BLOCKED",db.queryForObject("select inventory_state from lot where id=?",String.class,a));
+    assertEquals(0,db.queryForObject("select count(*) from mix_request where id=? and status='AUTHORIZED'",Integer.class,id));
+   }
+  }finally{pool.shutdownNow();}
+ }
+ @Test void twoNcOnSharedMixesUseConsistentLockOrderAndRevokeOnce()throws Exception{
+  UUID a=lot("OC-H-001"),b=lot("OC-H-001"),one=mix(a,b),two=mix(b,a);favorable(one);favorable(two);authorize(one);authorize(two);
+  var pool=Executors.newFixedThreadPool(2);try{
+   var tasks=List.<Callable<UUID>>of(()->nc(a,"geo"),()->nc(b,"tintoreria"));
+   for(var result:pool.invokeAll(tasks,20,TimeUnit.SECONDS))assertNotNull(result.get());
+   for(UUID id:List.of(one,two)){assertEquals("REVOKED",get(id).get("status").asText());assertEquals(1,db.queryForObject("select count(*) from mix_event where mix_id=? and event_type='REVOKED'",Integer.class,id));}
+  }finally{pool.shutdownNow();}
+ }
+ @Test void failureDuringRevocationRollsBackNcHoldLotAndMixTogether()throws Exception{
+  UUID a=lot("OC-H-001"),id=mix(a,lot("OC-H-001"));favorable(id);authorize(id);long lv=lotVersion(a);
+  String suffix=UUID.randomUUID().toString().replace("-","");UUID key=UUID.randomUUID();
+  db.execute("create function fail_mix_"+suffix+"() returns trigger language plpgsql as $$ begin if NEW.event_type='REVOKED' and NEW.mix_id='"+id+"'::uuid then raise exception 'forced revocation failure' using errcode='23514'; end if; return NEW; end $$");
+  db.execute("create trigger fail_mix_"+suffix+" before insert on mix_event for each row execute function fail_mix_"+suffix+"()");
+  try{
+   var failed=call("tintoreria","/lots/"+a+"/nonconformities",data(lv,Map.of("origin","POST_RELEASE","responsible","calidad")),key);assertEquals(409,failed.status,failed.raw);
+   assertEquals(lv,lotVersion(a));assertEquals("AVAILABLE",db.queryForObject("select inventory_state from lot where id=?",String.class,a));
+   assertEquals(0,db.queryForObject("select count(*) from inventory_hold where lot_id=?",Integer.class,a));assertEquals(0,db.queryForObject("select count(*) from non_conformity where lot_id=?",Integer.class,a));
+   assertEquals("AUTHORIZED",get(id).get("status").asText());assertTrue(get(id).get("usable").asBoolean());assertEquals(4,version(id));
+   assertEquals(0,db.queryForObject("select count(*) from command_result where command_key=?",Integer.class,key));
+  }finally{db.execute("drop trigger fail_mix_"+suffix+" on mix_event");db.execute("drop function fail_mix_"+suffix+"()");}
+ }
+ @Test void definitiveRejectionPreservesRevocationAndDatabaseProtectsUnrevokedAuthorization()throws Exception{
+  UUID a=lot("OC-H-001"),b=lot("OC-H-001"),id=mix(a,b);favorable(id);authorize(id);
+  assertThrows(org.springframework.dao.DataAccessException.class,()->db.update("update lot set inventory_state='BLOCKED',version=version+1 where id=?",a));
+  UUID caseId=nc(a,"geo");
+  good("aprobador","/lots/"+a+"/nonconformities/"+caseId+"/opinion",data(lotVersion(a),Map.of("outcome","NONCONFORMING")));
+  good("calidad","/lots/"+a+"/nonconformities/"+caseId+"/reject",data(lotVersion(a),Map.of("disposition","RETURN_TO_SUPPLIER")));
+  assertEquals("REJECTED",db.queryForObject("select quality_state from lot where id=?",String.class,a));assertEquals("REVOKED",get(id).get("status").asText());
+  assertEquals(422,call("tejeduria","/mix-requests",requestBody(a,b),UUID.randomUUID()).status);
+ }
+
+ @Test void noNormativeDateThresholdAndStaleAssessmentContextCannotAuthorize()throws Exception{
+  UUID a=lot("OC-H-001","2026-01-01"),b=lot("OC-H-001","2026-05-01"),id=mix(a,b);favorable(id);assertTrue(authorize(id).get("usable").asBoolean());
+  UUID old=mix(a,b);
+  db.update("insert into mix_assessment(id,request_id,role,author,outcome,reason,evidence,based_on_mix_version,review_revision,rule_version) values (?,?,'LAB_APPROVER','aprobador','FAVORABLE','synthetic old context','EV-OLD',0,0,'MIX-SIM-0')",UUID.randomUUID(),old);
+  assess(old,"geo","FAVORABLE");assess(old,"calidad","FAVORABLE");
+  assertEquals(422,call("produccion","/mix-requests/"+old+"/decision",data(version(old),Map.of("decision","AUTHORIZE")),UUID.randomUUID()).status);
+  assertTrue(get(old).get("blockers").toString().contains("desactualizado"));
  }
 }
