@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: proco
+      POSTGRES_USER: proco
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-proco-local}
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["proco-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proco -d proco"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  backend:
+    build: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/proco
+      DB_USER: proco
+      DB_PASSWORD: ${DB_PASSWORD:-proco-local}
+    depends_on:
+      db: {condition: service_healthy}
+    ports: ["127.0.0.1:8080:8080"]
+  frontend:
+    build: ./frontend
+    depends_on: [backend]
+    ports: ["127.0.0.1:8088:80"]
+volumes:
+  proco-data:

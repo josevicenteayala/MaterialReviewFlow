@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/proco}
+    username: ${DB_USER:proco}
+    password: ${DB_PASSWORD:proco-local}
+  flyway:
+    enabled: true
+server:
+  error:
+    include-message: never
