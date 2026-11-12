@@ -1,6 +1,6 @@
-# Contrato HTTP del simulador PROCO Sprint 2
+# Contrato HTTP del simulador PROCO Sprints 1 a 3
 
-Autenticación HTTP Basic. Todas las rutas requieren identidad; datos sintéticos. GET no cambia estado. POST devuelve HTTP 200 con el lote actual, también para mutaciones de NC. `Idempotency-Key` UUID y `version` entero ≥ 0 obligatorios en todos los comandos. `reason` y `evidence` no vacíos, máximo 2000 caracteres. Errores: 400 formato, 401 autenticación, 403 autorización, 404 recurso, 409 versión/estado/clave incompatible, 422 regla incumplida, cuerpo `{status,message}` para errores de negocio.
+Autenticación HTTP Basic. Todas las rutas requieren identidad; datos sintéticos. GET no cambia estado. Los comandos de material y NC devuelven HTTP 200 con el lote actual; los de mezcla devuelven su propio expediente. `Idempotency-Key` UUID y `version` entero ≥ 0 obligatorios en todos los comandos. `reason` y `evidence` no vacíos, máximo 2000 caracteres. Errores: 400 formato, 401 autenticación, 403 autorización, 404 recurso, 409 versión/estado/clave incompatible, 422 regla incumplida, cuerpo `{status,message}` para errores de negocio.
 
 ## Idempotencia, versión y transacciones
 
@@ -84,4 +84,61 @@ Tras esa respuesta, la versión es 7 y el dictamen soporta precisamente esa vers
 
 V3 no actualiza filas existentes ni modifica V1/V2. BLOCKED de V2 conserva su estado: abrir NC lo formaliza y una decisión explícita puede levantarlo. No hay desbloqueo automático por migración o reinspección. Clientes Sprint 1 que pretendan liberar tras reinspeccionar sin resolver los bloqueos recibirán 422.
 
-No existe `/api/tasks` persistido ni rutas de mezcla/consumo/devolución física. Evidencia textual, sin archivos binarios. No se debe volver a desplegar el código Sprint 1 sobre V3 esperando que pueda resolver bloqueos nuevos; una reversión requiere código compatible, no reescribir ni eliminar auditoría.
+No existe `/api/tasks` persistido ni rutas de consumo/devolución física. Las rutas de mezcla se incorporan en la sección de Sprint 3. Evidencia textual, sin archivos binarios. No se debe volver a desplegar el código Sprint 1 sobre V3 esperando que pueda resolver bloqueos nuevos; una reversión requiere código compatible, no reescribir ni eliminar auditoría.
+
+# Sprint 3 Autorización de mezclas
+
+La especificación de Sprint 3 usa US-06 (solicitud), US-07 (conceptos), US-08 (decisión) y US-09 (revocación); esa numeración rige esta entrega. Reglas y autoridades son hipótesis de simulación, contrastadas en `SPRINT-3-DESIGN.md` con P06–P10 y BR-06–09/12 del procedimiento.
+
+## Contrato de comandos
+
+Todas las mutaciones usan el mismo control por identidad, `Idempotency-Key` UUID y `version` optimista. POST devuelve el expediente **de mezcla** con id/version; la repetición idéntica devuelve su vista actual, sin repetir eventos. No se puede reutilizar una clave de un comando de lote para uno de mezcla. El cliente conserva cuerpo/clave por identidad y reconoce qué agregado debe recargar después del reintento.
+
+Campos comunes: version ≥ 0; reason/evidence no vacíos, máximo 2000 caracteres. Errores 403 rol, 404 recurso, 409 versión/estado/clave, 422 guarda de dominio; 400 para validación de transporte. Intentos de negocio rechazados se auditan en mix_event después del rollback; los eventos son append-only.
+
+| Método y ruta | Rol | Contrato |
+|---|---|---|
+| POST `/api/mix-requests` | PRODUCTION_REQUESTER | version=0, montageCode (≤80 caracteres), validUntil UTC futuro e items (2–50 lotes diferentes con lotId y quantity positiva, hasta 3 decimales) |
+| POST `/api/mix-requests/{id}/assessments` | LAB_APPROVER, GEO, QUALITY, DYEING | version actual, outcome FAVORABLE/UNFAVORABLE, motivo/evidencia. Un concepto por área; corrección requiere nueva solicitud |
+| POST `/api/mix-requests/{id}/decision` | PRODUCTION_APPROVER distinto de solicitante | version actual, decision AUTHORIZE/DENY, motivo/evidencia. AUTHORIZE exige todos los conceptos, contexto, vigencia y lotes elegibles; DENY registra decisión terminal aunque falten conceptos |
+| GET `/api/mix-requests` | Autenticados | Bandeja con expediente completo y elegibilidad derivada, sin consultas por cada ítem/área |
+| GET `/api/mix-requests/rules` | Autenticados | Mapa referencia → regla ficticia/versionada, incluida dyeingRequired |
+| GET `/api/mix-requests/{id}` | Autenticados | Expediente con ítems exactos, snapshots y estados actuales, conceptos e impedimentos |
+| GET `/api/mix-requests/{id}/timeline` | Autenticados | Eventos de creación, conceptos, autorización/denegación/revocación e intentos rechazados |
+| GET `/api/mix-requests/{id}/authorization?montageCode=…` | Autenticados | Revalida vigencia, regla y cada lote; exige montaje exacto. 422 si no utilizable. Devuelve la combinación guardada; no inicia montaje, no reserva ni consume |
+
+Ejemplo de solicitud (reemplazar lotes y caducidad con datos actuales):
+
+```json
+{
+  "version": 0,
+  "montageCode": "M-SIM-100",
+  "validUntil": "2026-12-01T23:00:00Z",
+  "reason": "Evaluación humana de compatibilidad",
+  "evidence": "EV-MIX-100",
+  "items": [
+    {"lotId": "UUID-LOTE-A", "quantity": 0.4},
+    {"lotId": "UUID-LOTE-B", "quantity": 0.5}
+  ]
+}
+```
+
+Concepto: `{"version":0,"reason":"Concepto favorable del área","evidence":"EV-C-100","outcome":"FAVORABLE"}`. El primer concepto devuelve versión 1; el siguiente usa esa versión, sin invalidar el concepto anterior. Decisión: `{"version":3,"reason":"Aprobación independiente","evidence":"EV-A-100","decision":"AUTHORIZE"}` para tres conceptos en un caso sin Tintorería.
+
+## Estados, conceptos y elegibilidad
+
+- `UNDER_REVIEW → AUTHORIZED/DENIED`; `AUTHORIZED → REVOKED` por bloqueo/NC/rechazo. DENIED y REVOKED son terminales. No hay edición de montaje, lista, cantidades, vigencia o criterio; los cambios requieren nuevo ID.
+- Los lotes deben estar RELEASED/AVAILABLE, sin holds, con cantidad positiva suficiente y con la misma versión de la solicitud. No se modifica cantidad ni versión de lote al crear/evaluar/autorizar una mezcla. Solicitudes independientes no son reservas acumulativas.
+- Catálogo ficticio: HILO-DEMO usa MANUAL_BASIC/MIX-SIM-1 (Lab/GEO/Calidad); ELASTANO-DEMO exige además Tintorería por MANUAL_DYEING/MIX-SIM-1. Si cualquiera lo requiere, toda la combinación lo requiere. El cliente no puede desactivar esa bandera. No se aplican umbrales por fecha de 30/60 días.
+- Cada concepto guarda actor/rol, motivo/evidencia, instante UTC, based_on_mix_version observado, review_revision y rule_version. La revisión de combinación permanece 1 porque es inmutable. La versión operativa aumenta al añadir cada concepto; no se exige que todos provengan de la última versión operativa, sino del mismo contexto inmutable. Cambiar lotes/reglas o introducir un contexto antiguo invalida la autorización. Cualquier concepto desfavorable, incluido uno opcional de Tintorería, bloquea AUTHORIZE.
+- El expediente expone `requiredRoles`, `materialBlockers`, `blockers`, `usable` y `checkedAt`. `materialBlockers` excluye conceptos faltantes para permitir evaluaciones independientes; `blockers` añade faltantes/desfavorables/desactualizados. `usable` exige AUTHORIZED y ningún impedimento. El estado AUTHORIZED histórico puede conservarse al vencer el tiempo, pero nunca basta para utilizarlo.
+- GET authorization es una comprobación en la instantánea checkedAt: no garantiza elegibilidad futura ni crea reserva/consumo. El sistema no proporciona un endpoint de montaje físico.
+- Ítems y conceptos conservan claves snake_case; raíz del expediente camelCase. Ítems incluyen lot_id, quantity, ordinal, reference, supplier_lot, production_date, lot_version_at_request, current_lot_version, quality_state, inventory_state y active_holds. No se afirma trazabilidad por set, cono/caja o máquina.
+
+## Revocación transaccional y auditoría
+
+Abrir NC por Almacén, Calidad, Laboratorio, Producción, GEO o Tintorería utiliza el módulo existente. La inserción/formalización del hold y cualquier rechazo formal revocan las mezclas AUTHORIZED afectadas en la misma transacción. Se conserva approver, decidedAt, decisionReason/Evidence y se agrega revokedAt/revocationReason y un evento REVOKED con lote, causa y correlación de la NC. No se reactivan al cerrar una NC.
+
+Orden común de locks: clave idempotente → lotes ordenados por UUID → solicitudes ordenadas por UUID. NC mantiene su lote y solo adquiere después solicitudes; nunca toma otros lotes. La aprobación vuelve a comprobar material y conceptos después de adquirir todos sus locks. Los triggers diferidos impiden confirmar AUTHORIZED con lotes bloqueados, rechazados, de versión distinta o cantidades insuficientes. Si falla la revocación o su auditoría, se revierte también la NC/hold/lote y su registro de comando.
+
+V4 es aditiva: tablas nuevas y columna mix_id en command_result, con XOR lote/mezcla. Los comandos antiguos conservan lot_id y fingerprint. No se reescriben V1–V3 ni decisiones anteriores. Auditoría de mezclas y conceptos son append-only; ítems/montaje quedan sellados e inmutables.

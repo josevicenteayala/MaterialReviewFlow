@@ -1,15 +1,15 @@
 # Simulador PROCO SIM-0.2
 
-Sprint 2 en revisión: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, levantamiento explícito y rechazo definitivo. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
+Sprint 3 en revisión: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, rechazo definitivo y autorización de mezclas por montaje. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
 
-Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). La base de Sprint 1 se amplía en la rama `codex/sprint-2-nonconformities`; no se ha hecho merge. El alcance técnico y los riesgos están en [docs/SPRINT-2.md](docs/SPRINT-2.md). Mezclas, montajes, sublotes, devolución física, notificaciones con acuse y OLA siguen pendientes.
+Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). Sprints 1 y 2 están en main. Sprint 3 se prepara en `codex/sprint-3-mixing`, sin modificar main ni hacer merge automático. El alcance técnico de mezclas y sus riesgos están en [docs/SPRINT-3-DESIGN.md](docs/SPRINT-3-DESIGN.md). El montaje físico, sublotes, devolución física, reserva/consumo, notificaciones con acuse y OLA siguen pendientes.
 
 ## Repositorio y continuidad
 
-Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene la primera entrega. El alcance de Sprint 2 está en [docs/SPRINT-2.md](docs/SPRINT-2.md) y se propone en un PR sin merge. El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
+Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene Sprints 1 y 2. Sprint 3 se propone en un PR desde `codex/sprint-3-mixing`, sin merge automático. Su especificación es [docs/PROCO_SPRINT3_PLAN.md](docs/PROCO_SPRINT3_PLAN.md). El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
 
 ```sh
-git clone https://github.com/josevicenteayala/MaterialReviewFlow.git
+git clone --branch codex/sprint-3-mixing https://github.com/josevicenteayala/MaterialReviewFlow.git
 cd MaterialReviewFlow
 docker compose up -d --build
 ```
@@ -33,8 +33,12 @@ Abrir [http://localhost:8088](http://localhost:8088). La primera construcción d
 | `calidad2` | QUALITY (responsable independiente) |
 | `tecnico` | LAB_TECH |
 | `aprobador` | LAB_APPROVER |
+| `tejeduria` | PRODUCTION_REQUESTER |
+| `produccion` | PRODUCTION_APPROVER |
+| `geo` | GEO |
+| `tintoreria` | DYEING |
 
-Contraseña de los cinco: **`Simulacion123!`**. Cuentas ficticias persistidas con BCrypt; credenciales enviadas con HTTP Basic explícito, sin cookies ni almacenamiento local. Al salir se elimina la credencial de la memoria de la interfaz. El selector elige identidad, no concede permisos. API y PostgreSQL solo se publican en loopback.
+Contraseña de los nueve: **`Simulacion123!`**. Cuentas ficticias persistidas con BCrypt; credenciales enviadas con HTTP Basic explícito, sin cookies ni almacenamiento local. Al salir se elimina la credencial de la memoria de la interfaz. El selector elige identidad, no concede permisos. API y PostgreSQL solo se publican en loopback.
 
 Se generan dos referencias, dos proveedores/OC y dos lotes iniciales (hilo y elastano), en cuarentena, con eventos auditables. Los comandos semilla tienen claves fijas y se reejecutan idempotentemente al arrancar: no reinician el avance del material.
 
@@ -68,6 +72,7 @@ Monolito modular con composición desde `workflow`; sin motor BPMN ni servicios 
 | `quality` | Condiciones de inspección/reinspección |
 | `laboratory` | Criterios críticos y segregación de aprobación |
 | `inventory` | Bloqueos identificados y condiciones de disponibilidad |
+| `mixing` | Solicitud/conceptos/decisiones, elegibilidad y revocación transaccional por montaje |
 | `nonconformity` | Expediente, dictámenes versionados, responsables, levantamiento y rechazo |
 | `workflow` | Comandos, autorización de negocio, transacción, concurrencia y API |
 | `audit` | Registro append-only, intentos denegados y consultas |
@@ -142,3 +147,34 @@ Recorrido de NC: cualquier usuario reporta, elige responsable QUALITY distinto d
 Para pruebas aisladas, crear una base nueva en ese proyecto y usar `TEST_DB_URL=jdbc:postgresql://localhost:55432/proco_sprint2_test` al ejecutar Maven. Para Playwright: `E2E_URL=http://127.0.0.1:18088 npm --prefix frontend run test:e2e`. El proxy Vite admite `PROCO_API_TARGET` si se necesita desarrollo local con puertos separados.
 
 El [registro de Sprint 2](docs/SPRINT-2-VERIFICATION.md) distingue pruebas realmente ejecutadas y limitaciones ambientales. El rechazo no es reversible; nuevas incidencias se registran con nuevos expedientes. Las NC adicionales de un lote rechazado conservan su estado e historial, pero el lote terminal no admite mutaciones posteriores.
+
+## Sprint 3 Mezclas por montaje
+
+[Especificación proporcionada](docs/PROCO_SPRINT3_PLAN.md), [diseño y contraste funcional](docs/SPRINT-3-DESIGN.md) y [verificación](docs/SPRINT-3-VERIFICATION.md).
+
+```sh
+git switch codex/sprint-3-mixing
+DB_PORT=55434 BACKEND_PORT=18083 FRONTEND_PORT=18090 docker compose -p proco-sprint3 up -d --build
+```
+
+Abrir [http://localhost:18090](http://localhost:18090). El proyecto separado usa un volumen nuevo. La ejecución estándar `docker compose up -d --build` sigue disponible en los puertos originales si se desea actualizar ese entorno. V4 añade esquema; no reescribe datos existentes ni modifica V1–V3. Se añaden usuarios y tres lotes ficticios nuevos mediante comandos de claves estables: HILO-MIX-001, HILO-MIX-002 y ELASTANO-MIX-001, inicialmente liberados/disponibles. Los reinicios no deshacen su avance ni recrean decisiones.
+
+1. Entrar como `tejeduria`, abrir **Mezclas por montaje** y crear solicitud con dos o más lotes elegibles, cantidades, montaje, vigencia y evidencia. No se reservan ni consumen existencias.
+2. `aprobador`, `geo` y `calidad` emiten cada uno un concepto favorable con evidencia. Si participa ELASTANO-DEMO, la regla ficticia obliga además a `tintoreria`. No existen tolerancias automáticas por diferencia de fechas.
+3. `produccion` revisa los impedimentos y autoriza o deniega el conjunto exacto. Un concepto desfavorable impide autorizar. El solicitante no aprueba su propia solicitud.
+4. Desde el expediente se puede consultar la autorización para ese montaje, con revalidación de lotes/vigencia; la consulta no inicia montaje físico.
+5. Abrir una NC sobre un lote desde **Ver lote** bloquea inventario y revoca las mezclas autorizadas afectadas en una transacción. El historial conserva la autorización original. Levantar la NC no reactiva la mezcla: se requiere nueva solicitud.
+
+La pantalla incluye bandeja filtrable por área, estado y montaje, conceptos, evidencia, decisiones y revocaciones. Los comandos inciertos de mezcla reutilizan el mismo cliente de sessionStorage y la misma clave/cuerpo al reintentar, incluso tras recargar; no se confunden con comandos de material.
+
+Regla ficticia del servidor: HILO-DEMO → MANUAL_BASIC; ELASTANO-DEMO → MANUAL_DYEING; versión MIX-SIM-1. Los criterios no son productivos. No se afirma validación por cono/caja, set, puesto o máquina. La unidad sigue siendo lote completo. Ver [contrato API](docs/API.md).
+
+Para regresión aislada, crear `proco_sprint3_test` una sola vez con psql dentro de ese proyecto y ejecutar:
+
+```sh
+TEST_DB_URL=jdbc:postgresql://localhost:55434/proco_sprint3_test mvn -f backend/pom.xml verify
+npm --prefix frontend run build
+E2E_URL=http://127.0.0.1:18090 npm --prefix frontend run test:e2e
+```
+
+Java local debe ser 21; Chromium se instala según las instrucciones de Playwright anteriores. Las pruebas de upgrade V2→V3 y V3→V4 usan esquemas sintéticos propios y comparan valores previos de material, NC, holds, auditoría e idempotencia. El CI ejecuta toda la suite contra PostgreSQL real y la interfaz contra Docker Compose desechable. No hay montaje físico, reserva, consumo ni integración corporativa en este sprint.

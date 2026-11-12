@@ -49,3 +49,16 @@ El [plan técnico de Sprint 2](SPRINT-2.md) reemplaza únicamente el supuesto de
 - Interfaz y verificación final: expediente, dictámenes, disposición y reintentos con clave/cuerpo congelados por identidad. Verificación remota ejecutada: 18 pruebas backend y 8 escenarios de navegador aprobados con la aplicación Docker Compose. Los enlaces por SHA y limitaciones se registran en [SPRINT-2-VERIFICATION.md](SPRINT-2-VERIFICATION.md).
 
 No se repiten retenciones ni reinspecciones básicas. Se amplía el bloqueo posterior sobre inventario sin borrar la liberación histórica. El rechazo cambia el estado técnico actual a REJECTED y conserva todos los eventos anteriores. Continúan pendientes sublotes, devolución/baja física, evidencia binaria, mezclas y contención de montajes.
+
+## Sprint 3 — mezclas por montaje
+
+Implementación guiada por [PROCO_SPRINT3_PLAN.md](PROCO_SPRINT3_PLAN.md) y contraste previo en [SPRINT-3-DESIGN.md](SPRINT-3-DESIGN.md), base main 795f626. Numeración US-06–09 del plan de Sprint 3.
+
+- US-06: solicitud por montaje, dos o más lotes distintos, cantidades/versiones/snapshots y vigencia explícita; combinación inmutable.
+- US-07: conceptos de Lab, GEO y Calidad, más Tintorería según regla ficticia del servidor; sin umbrales normativos por fechas.
+- US-08: autorización o denegación por Producción independiente, revalidación transaccional, sin reserva/consumo ni cambios de material.
+- US-09: NC/bloqueo/rechazo revocan autorizaciones afectadas en la misma transacción. Levantar NC no reactiva una autorización anterior.
+
+Entregas: diseño 7187547; solicitud/conceptos 4dcb2f5; revocación/concurrencia 2fd52d5; interfaz, regresión multiactor y documentación en la entrega de cierre. Resultados observados y alcance de pruebas en [SPRINT-3-VERIFICATION.md](SPRINT-3-VERIFICATION.md). Se prepara un PR de codex/sprint-3-mixing sin merge automático.
+
+Siguen pendientes autoridades operativas definitivas, tolerancias reales, trazabilidad por cono/caja/set/máquina, sublotes, adjuntos binarios, reserva/consumo, montaje físico y ERP. Las reglas nuevas son hipótesis de simulación; no alteran el procedimiento aprobado.
