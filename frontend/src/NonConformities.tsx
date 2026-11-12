@@ -33,7 +33,7 @@ export function NonConformities({lot,user,cases,holds,owners,disabled,onCommand}
           {lot.qualityState==='RELEASED'&&<option value="POST_RELEASE">Posterior a liberación</option>}<option value="OTHER">Otro</option>
         </select></label>
         <label>Responsable de Calidad<select value={responsible} onChange={e=>setResponsible(e.target.value)}>
-          {owners.map(owner=><option key={owner}>{owner}</option>)}
+          {owners.map(owner=><option key={owner} disabled={owner===user.username}>{owner}</option>)}
         </select></label>
         <label>Motivo de la NC<textarea required maxLength={2000} value={reason} onChange={e=>setReason(e.target.value)}/></label>
         <label>Evidencia de la NC<input required maxLength={2000} value={evidence} onChange={e=>setEvidence(e.target.value)}/></label>

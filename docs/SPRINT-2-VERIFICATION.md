@@ -8,7 +8,7 @@ Rama `codex/sprint-2-nonconformities`, sin merge. Registro iniciado el 12 de nov
 |---|---|
 | Suite de backend de la entrega d50e965, JDK 21 y PostgreSQL 17 real | 17 pruebas, 0 fallos/errores/omitidas |
 | Upgrade sintético V2→V3 | Filas de app_user, specification, purchase_order, lot, audit_event y command_result idénticas antes/después; sin backfill de holds/NC |
-| Políticas unitarias de la entrega posterior | LaboratoryPolicyTest y NcPolicyTest ejecutadas; comprobar resultado final en CI de la rama |
+| Políticas unitarias de la entrega posterior | LaboratoryPolicyTest y NcPolicyTest ejecutadas, ambas aprobadas |
 | Build frontend | TypeScript estricto y Vite 7.3.8 completados sin errores |
 | Instalación npm con tipos Node | 0 vulnerabilidades reportadas |
 
@@ -18,7 +18,7 @@ Tras esas pruebas, el socket de OrbStack dejó de responder a `_ping` y PostgreS
 
 ## Verificación final remota
 
-Pendiente de la ejecución de GitHub Actions de la rama/PR al registrar esta versión. El workflow usa Ubuntu 24.04, PostgreSQL desechable para Maven y **otro** PostgreSQL de Docker Compose para la aplicación web, con puertos separados. Construye e inicia la aplicación completa antes de ejecutar Playwright; adjunta reportes y logs de construcción/servicios. No se considera aprobado hasta observar el resultado de esa ejecución.
+Primera ejecución remota [43162081872](https://github.com/josevicenteayala/MaterialReviewFlow/actions/runs/43162081872): 18 pruebas backend aprobadas, build frontend y arranque Docker Compose correctos. Playwright aprobó 6 de 8 casos; dos agotaron tiempo al buscar el selector de disposición con getByLabel exacto. El snapshot mostraba el combobox accesible; se ajustó el selector a getByRole(combobox, name). Repetición final pendiente al registrar este cambio. El workflow usa Ubuntu 24.04, PostgreSQL desechable para Maven y **otro** PostgreSQL de Docker Compose para la aplicación web, con puertos separados. Construye e inicia la aplicación completa antes de ejecutar Playwright; adjunta reportes y logs de construcción/servicios. No se considera aprobado hasta observar el resultado de esa ejecución.
 
 La suite final prevista contiene 18 pruebas backend y 8 escenarios de navegador. Los números se confirmarán desde los reportes realmente ejecutados, no por inferencia a partir de los archivos fuente.
 

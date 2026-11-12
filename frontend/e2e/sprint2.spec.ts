@@ -28,7 +28,7 @@ async function opinion(page:Page,outcome:string){
   await nc.getByRole('button',{name:'Registrar dictamen NC'}).click();await expect(nc.getByText('Evaluación técnica independiente',{exact:true})).toBeVisible();
 }
 async function decision(page:Page,disposition:string){
-  const nc=page.getByTestId('nc-case');await nc.getByLabel('Disposición',{exact:true}).selectOption(disposition);
+  const nc=page.getByTestId('nc-case');await nc.getByRole('combobox',{name:'Disposición',exact:true}).selectOption(disposition);
   await nc.getByLabel('Motivo de la decisión NC').fill('Decisión formal de Calidad');await nc.getByLabel('Evidencia de la decisión NC').fill('EV-DECISION');
 }
 
