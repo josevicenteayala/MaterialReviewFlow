@@ -29,7 +29,7 @@ class MigrationUpgradeTest {
             var tables=List.of("app_user","specification","purchase_order","lot","audit_event","command_result");
             Map<String,List<String>> before=new HashMap<>();
             for(String table:tables)before.put(table,rows(db,table));
-            Flyway.configure().dataSource(source).schemas(schema).load().migrate();
+            Flyway.configure().dataSource(source).schemas(schema).target("3").load().migrate();
             for(String table:tables)assertEquals(before.get(table),rows(db,table),table+" must retain all original rows");
             assertEquals(0,db.queryForObject("select count(*) from inventory_hold",Integer.class));
             assertEquals(0,db.queryForObject("select count(*) from non_conformity",Integer.class));
