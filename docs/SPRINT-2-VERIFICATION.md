@@ -16,11 +16,21 @@ Base de las pruebas iniciales: `jdbc:postgresql://localhost:55432/proco_sprint2_
 
 Tras esas pruebas, el socket de OrbStack dejó de responder a `_ping` y PostgreSQL aceptaba TCP pero agotaba el protocolo. La construcción Compose final local no llegó a completarse; el arranque Java alternativo tampoco pudo obtener conexión a esa base. Se detuvieron únicamente los CLI/Vite de diagnóstico propios. No se reinició el motor ni se detuvieron/eliminaron contenedores o volúmenes de la demo existente.
 
-## Verificación final remota
+## Verificación remota ejecutada
 
-Primera ejecución remota [43162081872](https://github.com/josevicenteayala/MaterialReviewFlow/actions/runs/43162081872): 18 pruebas backend aprobadas, build frontend y arranque Docker Compose correctos. Playwright aprobó 6 de 8 casos; dos agotaron tiempo al buscar el selector de disposición con getByLabel exacto. El snapshot mostraba el combobox accesible; se ajustó el selector a getByRole(combobox, name). Repetición final pendiente al registrar este cambio. El workflow usa Ubuntu 24.04, PostgreSQL desechable para Maven y **otro** PostgreSQL de Docker Compose para la aplicación web, con puertos separados. Construye e inicia la aplicación completa antes de ejecutar Playwright; adjunta reportes y logs de construcción/servicios. No se considera aprobado hasta observar el resultado de esa ejecución.
+Ejecución aprobada [43162673543](https://github.com/josevicenteayala/MaterialReviewFlow/actions/runs/43162673543), commit `dbbde8a`, observada el 12 de noviembre de 2026:
 
-La suite final prevista contiene 18 pruebas backend y 8 escenarios de navegador. Los números se confirmarán desde los reportes realmente ejecutados, no por inferencia a partir de los archivos fuente.
+| Etapa | Resultado confirmado en logs/reportes |
+|---|---|
+| Maven / JDK 21 / PostgreSQL real | **18 pruebas aprobadas**, 0 fallos, 0 errores, 0 omitidas: 15 HTTP/integración, 1 migración y 2 políticas |
+| npm ci y build | Correctos; TypeScript estricto y build de producción |
+| Docker Compose | Construyó e inició backend, frontend Nginx y PostgreSQL independientes; API accesible a través de Nginx |
+| Playwright / Chromium | **8 escenarios aprobados** en 24,7 segundos |
+| Evidencia | Reportes JUnit, logs de Compose/build y capturas disponibles en el artefacto verification de esa ejecución |
+
+El [PR #1](https://github.com/josevicenteayala/MaterialReviewFlow/pull/1) publica también las ejecuciones posteriores, que deben revisarse por SHA. La primera ejecución [43162081872](https://github.com/josevicenteayala/MaterialReviewFlow/actions/runs/43162081872) aprobó backend/build/Compose y 6 de 8 escenarios de navegador; dos fallaron localizando el selector de disposición con getByLabel exacto. Los snapshots mostraban el combobox, se ajustó a getByRole y la repetición indicada arriba aprobó los ocho casos. No se ocultaron ni se marcaron como aprobadas las ejecuciones fallidas.
+
+El workflow usa Ubuntu 24.04, PostgreSQL desechable para Maven y **otro** PostgreSQL de Docker Compose para la aplicación web, con puertos separados. La comprobación de rechazo espera además la recarga de NC y sus nueve eventos antes de capturar la pantalla, para conservar evidencia completa del expediente. No se modificaron los datos de la demo local existente.
 
 ## Casos incluidos
 

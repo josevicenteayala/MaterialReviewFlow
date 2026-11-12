@@ -23,8 +23,8 @@ export function NonConformities({lot,user,cases,holds,owners,disabled,onCommand}
   }
   return <section className="nc-panel">
     <div className="sectiontitle"><h3>No conformidades y bloqueos</h3><span className="badge BLOCKED">{lot.activeHolds} bloqueos activos</span></div>
-    {lot.inventoryState === 'BLOCKED' && <p className="notice">La reinspección y el ensayo no desbloquean. Se exige dictamen y decisión explícita de Calidad; Almacén confirma después la disponibilidad.</p>}
-    {lot.inventoryState === 'BLOCKED' && (lot.activeHolds === 0 || holds.some(h=>h.status==='ACTIVE'&&!h.nc_id)) &&
+    {lot.inventoryState === 'BLOCKED' && !terminal && <p className="notice">La reinspección y el ensayo no desbloquean. Se exige dictamen y decisión explícita de Calidad; Almacén confirma después la disponibilidad.</p>}
+    {lot.inventoryState === 'BLOCKED' && !terminal && (lot.activeHolds === 0 || holds.some(h=>h.status==='ACTIVE'&&!h.nc_id)) &&
       <p className="next">Hay un bloqueo sin expediente formal. Abre una NC para documentar su evaluación y eventual levantamiento.</p>}
     {!terminal && <details className="report-nc"><summary>Reportar no conformidad y bloquear</summary>
       <form onSubmit={open}><fieldset disabled={disabled}>

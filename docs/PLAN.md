@@ -46,6 +46,6 @@ El [plan técnico de Sprint 2](SPRINT-2.md) reemplaza únicamente el supuesto de
 
 - Diseño previo: commit `7d2d8c5`, decisiones y riesgos en [SPRINT-2.md](SPRINT-2.md).
 - Dominio/API: commit `d50e965`; V3, NC y bloqueos identificados. Primera verificación local: 17 pruebas de backend aprobadas sobre PostgreSQL aislado; la entrega de UI agrega una prueba unitaria adicional y requiere nueva verificación conjunta.
-- Interfaz y verificación final: expediente, dictámenes, disposición y reintentos con clave/cuerpo congelados por identidad. La ejecución final y limitaciones se registran en [SPRINT-2-VERIFICATION.md](SPRINT-2-VERIFICATION.md).
+- Interfaz y verificación final: expediente, dictámenes, disposición y reintentos con clave/cuerpo congelados por identidad. Verificación remota ejecutada: 18 pruebas backend y 8 escenarios de navegador aprobados con la aplicación Docker Compose. Los enlaces por SHA y limitaciones se registran en [SPRINT-2-VERIFICATION.md](SPRINT-2-VERIFICATION.md).
 
 No se repiten retenciones ni reinspecciones básicas. Se amplía el bloqueo posterior sobre inventario sin borrar la liberación histórica. El rechazo cambia el estado técnico actual a REJECTED y conserva todos los eventos anteriores. Continúan pendientes sublotes, devolución/baja física, evidencia binaria, mezclas y contención de montajes.

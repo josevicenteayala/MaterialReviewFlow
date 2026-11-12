@@ -6,7 +6,7 @@ Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro e
 
 ## Repositorio y continuidad
 
-Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene la primera entrega. El siguiente alcance es la entrega 2 de [docs/PLAN.md](docs/PLAN.md): excepciones del material, NC formal, rechazo y devolución, sublotes y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
+Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene la primera entrega. El alcance de Sprint 2 está en [docs/SPRINT-2.md](docs/SPRINT-2.md) y se propone en un PR sin merge. El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
 
 ```sh
 git clone https://github.com/josevicenteayala/MaterialReviewFlow.git
@@ -90,6 +90,9 @@ Contrato detallado y ejemplos en [docs/API.md](docs/API.md). Todas las consultas
 | POST `/api/lots/{id}/test` | LAB_TECH |
 | POST `/api/lots/{id}/release` | LAB_APPROVER |
 | POST `/api/lots/{id}/available` | WAREHOUSE |
+| POST `/api/lots/{id}/nonconformities` | Los cuatro roles de negocio |
+| POST `/api/lots/{id}/nonconformities/{nc}/opinion` | LAB_APPROVER |
+| POST `/api/lots/{id}/nonconformities/{nc}/resolve` o `/reject` | QUALITY responsable independiente |
 
 Errores: 400 formato/validación de transporte; 401 credenciales; 403 rol; 404 lote/acción inexistente; 409 estado/versión/clave incompatible; 422 guarda de negocio. Los errores de negocio devuelven `{status,message}`.
 

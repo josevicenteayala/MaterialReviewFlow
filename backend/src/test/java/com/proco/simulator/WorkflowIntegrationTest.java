@@ -142,6 +142,7 @@ class WorkflowIntegrationTest {
   assertEquals(v,version(id));assertEquals("BLOCKED",inventory(id));
   assertEquals("REJECTED",db.queryForObject("select quality_state from lot where id=?",String.class,id));
   assertEquals("RETURN_TO_SUPPLIER",db.queryForObject("select disposition from non_conformity where id=?",String.class,nc));
+  assertEquals(0,new java.math.BigDecimal("1").compareTo(db.queryForObject("select quantity from lot where id=?",java.math.BigDecimal.class,id)));
   assertEquals(1,count("inventory_hold",id));
   assertEquals(1,db.queryForObject("select count(*) from audit_event where lot_id=? and event_type='RELEASE'",Integer.class,id));
   assertThrows(org.springframework.dao.DataAccessException.class,()->db.update("update lot set inventory_state='AVAILABLE' where id=?",id));

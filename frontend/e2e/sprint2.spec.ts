@@ -54,6 +54,8 @@ test('reportante de Calidad no decide; responsable distinto rechaza definitivame
   await expect(page.getByText('Rechazo definitivo; inventario bloqueado',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'Confirmar rechazo definitivo'})).toHaveCount(0);
   await expect(page.getByText('Reportar no conformidad y bloquear',{exact:true})).toHaveCount(0);
+  await expect(page.getByTestId('nc-case').getByText('Rechazo definitivo',{exact:true})).toBeVisible();
+  await expect(page.locator('.timeline li')).toHaveCount(9);
   await page.screenshot({path:'test-results/sprint2-rejected.png',fullPage:true});
 });
 
