@@ -37,3 +37,7 @@ Solicitudes por combinación exacta, conceptos GEO/Calidad/Lab/Tintorería, auto
 ## Entrega 4 — incidencias y validación multiactor
 
 NC posterior, revocación y contención de montajes, avisos persistentes con acuse, OLA y métricas, exportación, S09 y regresión S01–S10. Taller y decisión de evolución a operación real.
+
+## Sprint 2 — alcance acordado para esta implementación
+
+El [plan técnico de Sprint 2](SPRINT-2.md) reemplaza únicamente el supuesto de desbloqueo por reinspección: una reinspección favorable conserva bloqueos, que requieren decisión explícita y auditable. El sprint añade NC formal, dictámenes, rechazo definitivo y bloqueo posterior a liberación; reutiliza retenciones/reinspecciones existentes. Sublotes, adjuntos de archivo y devolución física siguen pendientes. Se trabaja en rama y se prepara PR sin merge, con datos de verificación aislados.
