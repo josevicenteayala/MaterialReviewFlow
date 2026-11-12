@@ -10,6 +10,6 @@ public final class LaboratoryPolicy {
   require(l.sampleCode()!=null && l.resultValue()!=null,422,"Falta muestra o ensayo crítico");
   require(!actor.equals(l.testedBy()),422,"El capturador no puede aprobar su ensayo crítico");
   require(passes(l,l.resultValue()),422,"Ensayo fuera de los criterios SIM-1");
-  require(l.inventoryState().equals("QUARANTINE"),422,"Existe un bloqueo activo");
+  require(l.inventoryState().equals("QUARANTINE") && l.activeHolds()==0,422,"Existe un bloqueo activo");
  }
 }

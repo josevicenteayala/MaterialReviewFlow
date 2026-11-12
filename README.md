@@ -1,12 +1,12 @@
 # Simulador PROCO SIM-0.2
 
-Primera entrega: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
+Sprint 2 en revisión: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, levantamiento explícito y rechazo definitivo. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
 
-Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). Solo está implementada la entrega 1. Mezclas, montajes, rechazo formal, expediente NC, sublotes, notificaciones con acuse y OLA corresponden a entregas posteriores.
+Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). La base de Sprint 1 se amplía en la rama `codex/sprint-2-nonconformities`; no se ha hecho merge. El alcance técnico y los riesgos están en [docs/SPRINT-2.md](docs/SPRINT-2.md). Mezclas, montajes, sublotes, devolución física, notificaciones con acuse y OLA siguen pendientes.
 
 ## Repositorio y continuidad
 
-Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene la primera entrega. El siguiente alcance es la entrega 2 de [docs/PLAN.md](docs/PLAN.md): excepciones del material, NC formal, rechazo y devolución, sublotes y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
+Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene la primera entrega. El alcance de Sprint 2 está en [docs/SPRINT-2.md](docs/SPRINT-2.md) y se propone en un PR sin merge. El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
 
 ```sh
 git clone https://github.com/josevicenteayala/MaterialReviewFlow.git
@@ -30,10 +30,11 @@ Abrir [http://localhost:8088](http://localhost:8088). La primera construcción d
 |---|---|
 | `almacen` | WAREHOUSE |
 | `calidad` | QUALITY |
+| `calidad2` | QUALITY (responsable independiente) |
 | `tecnico` | LAB_TECH |
 | `aprobador` | LAB_APPROVER |
 
-Contraseña de los cuatro: **`Simulacion123!`**. Cuentas ficticias persistidas con BCrypt; credenciales enviadas con HTTP Basic explícito, sin cookies ni almacenamiento local. Al salir se elimina la credencial de la memoria de la interfaz. El selector elige identidad, no concede permisos. API y PostgreSQL solo se publican en loopback.
+Contraseña de los cinco: **`Simulacion123!`**. Cuentas ficticias persistidas con BCrypt; credenciales enviadas con HTTP Basic explícito, sin cookies ni almacenamiento local. Al salir se elimina la credencial de la memoria de la interfaz. El selector elige identidad, no concede permisos. API y PostgreSQL solo se publican en loopback.
 
 Se generan dos referencias, dos proveedores/OC y dos lotes iniciales (hilo y elastano), en cuarentena, con eventos auditables. Los comandos semilla tienen claves fijas y se reejecutan idempotentemente al arrancar: no reinician el avance del material.
 
@@ -45,7 +46,7 @@ Se generan dos referencias, dos proveedores/OC y dos lotes iniciales (hilo y ela
 4. Entrar como `aprobador`; revisar y aprobar liberación técnica. El inventario permanece en cuarentena.
 5. Entrar como `almacen`; confirmar segregación y disponibilidad. Resultado: calidad RELEASED e inventario AVAILABLE; historial con seis eventos e identidades distintas.
 
-Todo comando requiere motivo y evidencia. Para ensayar retención, Calidad puede registrar un hallazgo o el técnico ingresar resistencia **5**: calidad HELD e inventario BLOCKED. Calidad reinspecciona con evidencia de subsanación, se inicia un nuevo ciclo y se requiere nueva muestra y nuevo resultado. Los resultados anteriores quedan en auditoría; nunca se sobreescriben sus eventos. Un lote liberado ya no admite edición o nuevos ensayos en esta entrega.
+Todo comando requiere motivo y evidencia. Para ensayar retención, Calidad puede registrar un hallazgo o el técnico ingresar resistencia **5**: calidad HELD e inventario BLOCKED. Calidad reinspecciona con evidencia de subsanación, se inicia un nuevo ciclo y se requiere nueva muestra y nuevo resultado. El bloqueo permanece hasta formalizar la NC, obtener dictamen vigente y levantarla explícitamente. Los resultados anteriores quedan en auditoría; nunca se sobreescriben sus eventos. Un lote liberado ya no admite edición o nuevos ensayos en esta entrega.
 
 ## Reglas y persistencia
 
@@ -53,7 +54,7 @@ Todo comando requiere motivo y evidencia. Para ensayar retención, Calidad puede
 - Cada acción valida rol, estado, evidencia y versión en servidor. Un técnico no puede liberar. La política también compara identidad de capturador/aprobador, aunque se ampliaran roles en el futuro.
 - Todas las escrituras de un comando, su auditoría y resultado idempotente se confirman en una transacción. Los intentos de negocio denegados se registran en una transacción independiente después del rollback. Fallos de autenticación/JSON/validación de transporte no generan un evento de negocio.
 - `version` es la precondición optimista; además se bloquea la fila durante el comando. Saldo de OC protegido con bloqueo de la orden al recibir; no se acepta una cantidad acumulada superior a la OC. Lote proveedor único por OC.
-- `Idempotency-Key` UUID obligatorio; se serializan reintentos por actor/clave. Misma clave y comando devuelve el lote actual sin repetir la acción. La reutilización con otro contenido devuelve 409. La UI deshabilita doble clic; si la respuesta se pierde, actualizar y consultar historial antes de repetir manualmente (cada nuevo clic genera nueva clave).
+- `Idempotency-Key` UUID obligatorio; se serializan reintentos por actor/clave. Misma clave y comando devuelve el lote actual sin repetir la acción. La reutilización con otro contenido devuelve 409. La UI conserva clave, URL y cuerpo original en sessionStorage por identidad antes de enviar. Tras red/5xx/respuesta incompleta ofrece reintentar exactamente el comando pendiente, incluso tras recargar; impide nuevos comandos de esa identidad. Un 4xx definitivo permite corregir con clave nueva. Una consulta fallida después de confirmar el POST nunca repite la mutación.
 - Cada evento conserva actor/rol, fecha UTC, estado anterior/nuevo, motivo, evidencia, criterio SIM-1, comando y correlación. Trigger PostgreSQL impide UPDATE/DELETE. Un administrador de base de datos puede alterar la infraestructura; no se pretende protección criptográfica frente a DBA.
 - Ensayos críticos ficticios por referencia almacenados en catálogo versionado. No hay API administrativa para editarlos, ni concesiones ni liberaciones automáticas.
 
@@ -66,7 +67,8 @@ Monolito modular con composición desde `workflow`; sin motor BPMN ni servicios 
 | `reception` | Modelo de lote y consultas de expediente |
 | `quality` | Condiciones de inspección/reinspección |
 | `laboratory` | Criterios críticos y segregación de aprobación |
-| `inventory` | Condiciones de disponibilidad |
+| `inventory` | Bloqueos identificados y condiciones de disponibilidad |
+| `nonconformity` | Expediente, dictámenes versionados, responsables, levantamiento y rechazo |
 | `workflow` | Comandos, autorización de negocio, transacción, concurrencia y API |
 | `audit` | Registro append-only, intentos denegados y consultas |
 | `security` | Autenticación, BCrypt y autorización de acceso autenticado |
@@ -88,6 +90,9 @@ Contrato detallado y ejemplos en [docs/API.md](docs/API.md). Todas las consultas
 | POST `/api/lots/{id}/test` | LAB_TECH |
 | POST `/api/lots/{id}/release` | LAB_APPROVER |
 | POST `/api/lots/{id}/available` | WAREHOUSE |
+| POST `/api/lots/{id}/nonconformities` | Los cuatro roles de negocio |
+| POST `/api/lots/{id}/nonconformities/{nc}/opinion` | LAB_APPROVER |
+| POST `/api/lots/{id}/nonconformities/{nc}/resolve` o `/reject` | QUALITY responsable independiente |
 
 Errores: 400 formato/validación de transporte; 401 credenciales; 403 rol; 404 lote/acción inexistente; 409 estado/versión/clave incompatible; 422 guarda de negocio. Los errores de negocio devuelven `{status,message}`.
 
@@ -115,10 +120,25 @@ npx playwright install chromium --only-shell
 npm run test:e2e
 ```
 
-La prueba cambia entre cuatro identidades, comprueba bloqueo de aprobación sin ensayo y termina en AVAILABLE con seis eventos; genera captura en `frontend/test-results/s01-available.png`. `E2E_URL` permite cambiar el host. CI define PostgreSQL aislado, JDK 21, compilación y recorrido Playwright contra backend/Vite.
+La prueba cambia entre cuatro identidades, comprueba bloqueo de aprobación sin ensayo y termina en AVAILABLE con seis eventos; genera captura en `frontend/test-results/s01-available.png`. `E2E_URL` permite cambiar el host. CI define PostgreSQL aislado para pruebas, JDK 21, compilación y recorrido Playwright contra la aplicación completa levantada con Docker Compose.
 
 Para desarrollo interactivo: `mvn -f backend/pom.xml spring-boot:run` y `npm --prefix frontend run dev`; Vite enruta `/api` al puerto 8080. Detener primero el backend de Compose si ocupa ese puerto.
 
 ## Límites de esta entrega
 
 Simulación local sin SSO, HTTPS, recuperación de contraseña, gestión de usuarios, aislamiento por organización ni adjuntos binarios. Todos los usuarios autorizados pueden consultar todos los lotes ficticios. La evidencia es una referencia textual auditable, no un archivo firmado. La bandeja se calcula desde el estado persistido; no tiene vencimientos ni acuses. No se declara conformidad normativa ni validación de los diez escenarios completos. Ver [plan](docs/PLAN.md) y [registro de verificación](docs/VERIFICATION.md).
+
+## Revisar Sprint 2 sin modificar la demo existente
+
+```sh
+git switch codex/sprint-2-nonconformities
+DB_PORT=55432 BACKEND_PORT=18081 FRONTEND_PORT=18088 docker compose -p proco-sprint2 up -d --build
+```
+
+Abrir [http://localhost:18088](http://localhost:18088). El proyecto Compose separado usa otro volumen; no ejecutar `down -v` sobre la demo existente. V3 solo añade esquema y restricciones, no reescribe lotes, usuarios ni auditoría; V1/V2 permanecen intactas. Un BLOCKED heredado conserva su bloqueo y debe formalizarse como NC. La prueba de upgrade compara todas las filas V2 antes/después en un esquema sintético.
+
+Recorrido de NC: cualquier usuario reporta, elige responsable QUALITY distinto del reportante y adjunta motivo/evidencia textual. El inventario se bloquea aunque estuviera RELEASED/AVAILABLE. `aprobador` registra dictamen CONFORMING o NONCONFORMING para la versión actual. Solo el responsable decide: LIFT_HOLD exige ensayo/muestra conformes y devuelve a cuarentena si era el último bloqueo; RETURN_TO_SUPPLIER/SCRAP rechaza definitivamente y mantiene bloqueado. No se mueve cantidad ni se ejecuta devolución física. `calidad2` permite una decisión independiente cuando reporta `calidad`.
+
+Para pruebas aisladas, crear una base nueva en ese proyecto y usar `TEST_DB_URL=jdbc:postgresql://localhost:55432/proco_sprint2_test` al ejecutar Maven. Para Playwright: `E2E_URL=http://127.0.0.1:18088 npm --prefix frontend run test:e2e`. El proxy Vite admite `PROCO_API_TARGET` si se necesita desarrollo local con puertos separados.
+
+El [registro de Sprint 2](docs/SPRINT-2-VERIFICATION.md) distingue pruebas realmente ejecutadas y limitaciones ambientales. El rechazo no es reversible; nuevas incidencias se registran con nuevos expedientes. Las NC adicionales de un lote rechazado conservan su estado e historial, pero el lote terminal no admite mutaciones posteriores.

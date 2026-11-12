@@ -1,9 +1,13 @@
-name: Verify first delivery
+name: Verify PROCO simulator
 on: [push, pull_request]
 jobs:
   verify:
     # Keep the runner compatible with the pinned Playwright browser dependencies.
     runs-on: ubuntu-24.04
+    env:
+      DB_PORT: 55432
+      BACKEND_PORT: 18081
+      FRONTEND_PORT: 18088
     services:
       postgres:
         image: postgres:17-alpine
@@ -31,18 +35,20 @@ jobs:
       - run: npm --prefix frontend ci
       - run: npm --prefix frontend run build
       - run: cd frontend && npx playwright install --with-deps chromium --only-shell
-      - name: Start application for browser tests
+      - name: Start isolated Docker Compose application
         run: |
-          DB_URL=jdbc:postgresql://localhost:5432/proco_test java -jar backend/target/simulator-0.1.0.jar > /tmp/proco-backend.log 2>&1 &
-          npm --prefix frontend run dev > /tmp/proco-frontend.log 2>&1 &
+          docker compose -p proco-ci up -d --build > /tmp/proco-compose-build.log 2>&1
           for i in $(seq 1 60); do
-            if curl -fsS -u 'almacen:Simulacion123!' http://localhost:8080/api/me; then break; fi
+            if curl -fsS -u 'almacen:Simulacion123!' http://localhost:18088/api/me; then break; fi
             sleep 1
           done
-          curl -fsS -u 'almacen:Simulacion123!' http://localhost:8080/api/me
+          curl -fsS -u 'almacen:Simulacion123!' http://localhost:18088/api/me
       - run: npm --prefix frontend run test:e2e
         env:
-          E2E_URL: http://127.0.0.1:5173
+          E2E_URL: http://127.0.0.1:18088
+      - name: Collect Compose logs
+        if: always()
+        run: docker compose -p proco-ci logs --no-color > /tmp/proco-compose.log 2>&1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -50,5 +56,5 @@ jobs:
           path: |
             backend/target/surefire-reports
             frontend/test-results
-            /tmp/proco-backend.log
-            /tmp/proco-frontend.log
+            /tmp/proco-compose-build.log
+            /tmp/proco-compose.log
