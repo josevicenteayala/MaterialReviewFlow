@@ -2,6 +2,7 @@ package com.proco.simulator.nonconformity;
 
 import com.proco.simulator.audit.AuditLog;
 import com.proco.simulator.inventory.HoldStore;
+import com.proco.simulator.mixing.MixRevocations;
 import com.proco.simulator.reception.*;
 import com.proco.simulator.shared.RuleException;
 import com.proco.simulator.workflow.CommandRunner;
@@ -17,16 +18,17 @@ public class NcService {
     private final HoldStore holds;
     private final CommandRunner runner;
     private final AuditLog audit;
+    private final MixRevocations revocations;
 
-    public NcService(JdbcTemplate db, NcStore cases, HoldStore holds, CommandRunner runner, AuditLog audit) {
-        this.db=db; this.cases=cases; this.holds=holds; this.runner=runner; this.audit=audit;
+    public NcService(JdbcTemplate db, NcStore cases, HoldStore holds, CommandRunner runner, AuditLog audit,MixRevocations revocations) {
+        this.db=db; this.cases=cases; this.holds=holds; this.runner=runner; this.audit=audit;this.revocations=revocations;
     }
 
     public Lot execute(UUID lotId, UUID ncId, String action, NcCommand c, UUID key, String actor, String role) {
         String fingerprint="NC:"+lotId+":"+ncId+":"+action+":"+c;
         return runner.run(lotId,key,actor,role,fingerprint,()->{
             String permission=switch(action) {
-                case "open" -> "WAREHOUSE,QUALITY,LAB_TECH,LAB_APPROVER";
+                case "open" -> "WAREHOUSE,QUALITY,LAB_TECH,LAB_APPROVER,PRODUCTION_REQUESTER,PRODUCTION_APPROVER,GEO,DYEING";
                 case "opinion" -> "LAB_APPROVER";
                 case "resolve","reject" -> "QUALITY";
                 default -> throw new RuleException(404,"Acción de NC inexistente");
@@ -64,6 +66,7 @@ public class NcService {
                     } else {
                         require(c.disposition()!=null && Set.of("RETURN_TO_SUPPLIER","SCRAP").contains(c.disposition()),422,"Indica disposición RETURN_TO_SUPPLIER o SCRAP");
                         db.update("update lot set quality_state='REJECTED',inventory_state='BLOCKED' where id=?",lotId);
+                        revocations.revoke(lotId,actor,c.reason(),c.evidence(),key,"REJECTED");
                         disposition=c.disposition();
                     }
                     db.update("update non_conformity set status=?,disposition=?,decided_by=?,decided_at=now(),decision_reason=?,decision_evidence=? where id=?",

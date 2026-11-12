@@ -19,4 +19,15 @@ public class AuditLog {
   append(existing,actor,role,"COMMAND_DENIED",null,null,reason,"Intento rechazado",correlation,payload,payload.startsWith("NC:")?"SIM-2":"SIM-1");
  }
  public List<Map<String,Object>> timeline(UUID lot){return db.queryForList("select * from audit_event where lot_id=? order by occurred_at,id",lot);}
+ public void appendMix(UUID mix,String actor,String role,String event,String from,String to,String reason,String evidence,UUID correlation,String payload){
+  db.update("insert into mix_event(id,mix_id,actor,role,event_type,from_state,to_state,reason,evidence,correlation_id,rule_version,payload) values (?,?,?,?,?,?,?,?,?,?,'SIM-3',?)",
+    UUID.randomUUID(),mix,actor,role,event,from,to,reason,evidence,correlation,payload);
+ }
+ @Transactional(propagation=Propagation.REQUIRES_NEW)
+ public void deniedMix(UUID mix,String actor,String role,String reason,UUID correlation,String payload){
+  UUID existing=mix!=null && Boolean.TRUE.equals(db.queryForObject("select exists(select 1 from mix_request where id=?)",Boolean.class,mix))?mix:null;
+  appendMix(existing,actor,role,"COMMAND_DENIED",null,null,reason,"Intento rechazado",correlation,payload);
+ }
+ public List<Map<String,Object>> mixTimeline(UUID mix){return db.queryForList("select * from mix_event where mix_id=? order by occurred_at,id",mix);}
+
 }

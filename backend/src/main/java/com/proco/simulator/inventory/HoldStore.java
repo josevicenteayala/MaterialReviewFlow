@@ -2,6 +2,7 @@ package com.proco.simulator.inventory;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import com.proco.simulator.mixing.MixRevocations;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -9,18 +10,24 @@ import java.util.UUID;
 @Repository
 public class HoldStore {
     private final JdbcTemplate db;
-    public HoldStore(JdbcTemplate db) { this.db = db; }
+    private final MixRevocations revocations;
+    public HoldStore(JdbcTemplate db,MixRevocations revocations) { this.db = db; this.revocations=revocations; }
 
     public void place(UUID lot, UUID nc, String actor, String reason, String evidence, UUID correlation) {
         db.update("insert into inventory_hold(id,lot_id,nc_id,opened_by,reason,evidence,correlation_id) values (?,?,?,?,?,?,?)",
                 UUID.randomUUID(), lot, nc, actor, reason, evidence, correlation);
-        db.update("update lot set inventory_state='BLOCKED' where id=?", lot);
+        block(lot,actor,reason,evidence,correlation);
     }
 
     public void formalize(UUID lot, UUID nc, String actor, String reason, String evidence, UUID correlation) {
         int associated = db.update("update inventory_hold set nc_id=? where lot_id=? and nc_id is null and status='ACTIVE'", nc, lot);
         if (associated == 0) place(lot, nc, actor, reason, evidence, correlation);
-        else db.update("update lot set inventory_state='BLOCKED' where id=?", lot);
+        else block(lot,actor,reason,evidence,correlation);
+    }
+
+    private void block(UUID lot,String actor,String reason,String evidence,UUID correlation) {
+        db.update("update lot set inventory_state='BLOCKED' where id=?",lot);
+        revocations.revoke(lot,actor,reason,evidence,correlation,"INVENTORY_HOLD");
     }
 
     public void lift(UUID lot, UUID nc, String actor, String reason, String evidence) {
