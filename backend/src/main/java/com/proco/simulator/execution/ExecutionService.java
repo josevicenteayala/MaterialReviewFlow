@@ -10,9 +10,9 @@ import static com.proco.simulator.shared.RuleException.require;
 
 @Service
 public class ExecutionService {
- private final JdbcTemplate db; private final MixStore mixes; private final ExecutionStore store;
+ private final java.time.Clock clock;private final JdbcTemplate db; private final MixStore mixes; private final ExecutionStore store;
  private final CommandRunner runner; private final AuditLog audit;
- public ExecutionService(JdbcTemplate db,MixStore mixes,ExecutionStore store,CommandRunner runner,AuditLog audit){this.db=db;this.mixes=mixes;this.store=store;this.runner=runner;this.audit=audit;}
+ public ExecutionService(JdbcTemplate db,MixStore mixes,ExecutionStore store,CommandRunner runner,AuditLog audit,java.time.Clock clock){this.clock=clock;this.db=db;this.mixes=mixes;this.store=store;this.runner=runner;this.audit=audit;}
  public void lockMix(UUID mix){
   var ids=mixes.lotIds(mix);require(!ids.isEmpty(),404,"Solicitud de mezcla inexistente");
   for(UUID lot:ids)db.queryForList("select id from lot where id=? for update",lot);
@@ -27,7 +27,7 @@ public class ExecutionService {
    require(mix.usable(),422,"Autorización no utilizable: "+mix.status()+"; "+String.join("; ",mix.blockers()));
    require(db.queryForObject("select count(*) from montage_execution where mix_request_id=?",Integer.class,mixId)==0,409,"La autorización ya tiene ejecución");
    UUID id=UUID.randomUUID();
-   db.update("insert into montage_execution(id,mix_request_id,montage_code,status,started_by,start_reason,start_evidence) values (?,?,?,'IN_PROGRESS',?,?,?)",id,mixId,mix.montageCode(),actor,c.reason(),c.evidence());
+   db.update("insert into montage_execution(id,mix_request_id,montage_code,status,started_by,start_reason,start_evidence,started_at) values (?,?,?,'IN_PROGRESS',?,?,?,?)",id,mixId,mix.montageCode(),actor,c.reason(),c.evidence(),java.sql.Timestamp.from(clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)));
    audit.appendExecution(id,null,null,mixId,null,actor,role,"STARTED",null,"IN_PROGRESS",c.reason(),c.evidence(),key,c.toString());
    return store.get(id);
   },store::get,r->(UUID)r.get("id"));
@@ -47,7 +47,7 @@ public class ExecutionService {
    if(action.equals("complete") && state.equals("IN_PROGRESS"))require(mixes.get(mix).usable(),422,"Revisión requerida: autorización no vigente/utilizable; no se permite completar. Documenta cancelación o intervención");
    String next=ExecutionPolicy.terminal(state,action);
 
-   db.update("update montage_execution set status=?,ended_at=now(),ended_by=?,disposition=?,end_evidence=?,version=version+1 where id=?",next,actor,c.reason(),c.evidence(),id);
+   db.update("update montage_execution set status=?,ended_at=?,ended_by=?,disposition=?,end_evidence=?,version=version+1 where id=?",next,java.sql.Timestamp.from(clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)),actor,c.reason(),c.evidence(),id);
    audit.appendExecution(id,null,null,mix,null,actor,role,next,state,next,c.reason(),c.evidence(),key,c.toString());return store.get(id);
   },store::get,r->(UUID)r.get("id"));
  }

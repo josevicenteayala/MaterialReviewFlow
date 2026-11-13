@@ -16,13 +16,13 @@ public class ExecutionContainment {
    String state=(String)e.get("status");if(state.equals("CANCELLED"))continue;
    UUID id=(UUID)e.get("id");boolean rejection=cause.equals("REJECTED");
    String type=rejection?"REJECTION_COORDINATION":Set.of("COMPLETED","CLOSED_WITH_INCIDENT").contains(state)?"RETROSPECTIVE_REVIEW":"CONTAINMENT";
-   if(state.equals("IN_PROGRESS"))db.update("update montage_execution set status='SUSPENDED',suspended_at=now(),suspension_reason=?,version=version+1 where id=?",reason,id);
+   if(state.equals("IN_PROGRESS"))db.update("update montage_execution set status='SUSPENDED',suspended_at=?,suspension_reason=?,version=version+1 where id=?",java.sql.Timestamp.from(clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)),reason,id);
    List<String> roles=new ArrayList<>(rejection?List.of("PROCUREMENT"):List.of("WAREHOUSE","QUALITY","PRODUCTION_REQUESTER","GEO"));
    if(!rejection && Boolean.TRUE.equals(e.get("dyeing_required")))roles.add("DYEING");
    boolean created=false;
    for(String target:roles){
     UUID task=UUID.randomUUID();
-    int inserted=db.update("insert into containment_task(id,source_event_id,nc_id,lot_id,mix_id,execution_id,task_type,target_role,reason,evidence,created_at) values (?,?,?,?,?,?,?,?,?,?,?) on conflict(source_event_id,execution_id,task_type,target_role) do nothing",task,correlation,nc,lot,mix,id,type,target,reason,evidence,java.sql.Timestamp.from(clock.instant()));
+    int inserted=db.update("insert into containment_task(id,source_event_id,nc_id,lot_id,mix_id,execution_id,task_type,target_role,reason,evidence,created_at) values (?,?,?,?,?,?,?,?,?,?,?) on conflict(source_event_id,execution_id,task_type,target_role) do nothing",task,correlation,nc,lot,mix,id,type,target,reason,evidence,java.sql.Timestamp.from(clock.instant().truncatedTo(java.time.temporal.ChronoUnit.MICROS)));
     if(inserted==1){created=true;audit.appendExecution(id,task,lot,mix,nc,actor,role,"TASK_CREATED",null,"OPEN",reason,evidence,correlation,"cause="+cause+"; target="+target+"; type="+type);}
    }
    if(created)audit.appendExecution(id,null,lot,mix,nc,actor,role,state.equals("IN_PROGRESS")?"SUSPENDED":type.equals("RETROSPECTIVE_REVIEW")?"RETROSPECTIVE_ALERT":"CONTAINMENT_REQUIRED",state,state.equals("IN_PROGRESS")?"SUSPENDED":state,reason,evidence,correlation,"cause="+cause);
