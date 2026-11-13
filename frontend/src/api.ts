@@ -70,3 +70,13 @@ async function send<T>(username: string, credentials: string, command: PendingCo
     // Network, 5xx and unreadable success responses deliberately leave the frozen command in storage.
   }
 }
+
+/** Authenticated read-only export. Filename is supplied by UI from a UUID or a static constant. */
+export async function download(path: string, credentials: string, filename: string): Promise<void> {
+  const response = await fetch('/api' + path, {headers: {Authorization: 'Basic ' + credentials}});
+  if (!response.ok) throw await errorFor(response);
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement('a');
+  anchor.href = url; anchor.download = filename; document.body.appendChild(anchor); anchor.click(); anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

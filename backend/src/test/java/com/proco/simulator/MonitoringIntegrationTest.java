@@ -130,4 +130,36 @@ class MonitoringIntegrationTest {
   try(var pool=Executors.newFixedThreadPool(2)){var latch=new CountDownLatch(1);var update=pool.submit(()->{latch.await();return good("geo","/monitoring/ola-rules",body);});var incident=pool.submit(()->{latch.await();return nc(a);});latch.countDown();assertNotNull(update.get(15,TimeUnit.SECONDS));assertNotNull(incident.get(15,TimeUnit.SECONDS));}
   var t=taskFor(e,"WAREHOUSE");var rule=db.queryForMap("select * from ola_rule where id=?",UUID.fromString(t.get("ola_rule_id").asText()));Instant created=Instant.parse(t.get("created_at").asText());assertEquals(created.plusSeconds(((Number)rule.get("ack_minutes")).longValue()*60),Instant.parse(t.get("ack_due_at").asText()));assertEquals(created.plusSeconds(((Number)rule.get("close_minutes")).longValue()*60),Instant.parse(t.get("close_due_at").asText()));
  }
+
+ @Test void multipleCausesCountCasesOnceAndMedianExcludesOpenClosures()throws Exception{
+  UUID a=lot("OC-H-001"),b=lot("OC-H-001"),m=approved(a,b),e=id(start(m));nc(a);var first=taskFor(e,"WAREHOUSE");clock.value.set(clock.instant().plusSeconds(60));nc(b);
+  var all=execution(e).get("tasks");JsonNode second=null;for(var t:all)if(t.get("target_role").asText().equals("WAREHOUSE")&&!t.get("id").equals(first.get("id")))second=t;assertNotNull(second);
+  clock.value.set(clock.instant().plusSeconds(60));good("almacen","/tasks/"+id(first)+"/acknowledge",data(0,Map.of()));clock.value.set(clock.instant().plusSeconds(180));good("almacen","/tasks/"+id(second)+"/acknowledge",data(0,Map.of()));clock.value.set(clock.instant().plusSeconds(300));good("almacen","/tasks/"+id(first)+"/complete",data(1,Map.of()));
+  var report=good("geo","/monitoring/summary"+params(m)+"&area=WAREHOUSE",null);assertEquals(2,report.get("nonconformities").get("OPEN").asInt());assertEquals(1,report.get("mixes").get("REVOKED").asInt());assertEquals(1,report.get("executions").get("SUSPENDED").asInt());var t=report.get("responseTimes").get(0);assertEquals(2,t.get("ack_count").asInt());assertEquals(180,t.get("ack_median_seconds").asDouble(),0.001);assertEquals(180,t.get("ack_mean_seconds").asDouble(),0.001);assertEquals(1,t.get("close_count").asInt());assertEquals(600,t.get("close_mean_seconds").asDouble(),0.001);
+ }
+ HttpResponse<String> raw(String actor,String path)throws Exception{
+  var builder=HttpRequest.newBuilder(URI.create("http://localhost:18380/api"+path));if(actor!=null)builder.header("Authorization","Basic "+Base64.getEncoder().encodeToString((actor+":Simulacion123!").getBytes(StandardCharsets.UTF_8)));return client.send(builder.build(),HttpResponse.BodyHandlers.ofString());
+ }
+ @Test void jsonExportIsCompleteBoundedAndReadOnlyWithoutSecrets()throws Exception{
+  UUID a=lot("OC-H-001"),m=approved(a,lot("OC-H-001")),e=id(start(m));nc(a);long events=db.queryForObject("select count(*) from execution_event",Long.class);
+  var report=good("geo","/reports/executions/"+e+".json",null);assertTrue(report.get("legend").asText().contains("SOLO SIMULACIÓN"));assertEquals(e.toString(),report.get("execution").get("id").asText());assertEquals(2,report.get("lots").size());assertEquals(1,report.get("nonconformities").size());assertEquals(1,report.get("holds").size());assertEquals(4,report.get("tasks").size());assertTrue(report.get("olaRules").size()>0);assertTrue(report.get("lotEvents").size()>=13);assertTrue(report.get("mixEvents").size()>=6);assertTrue(report.get("executionEvents").size()>=6);
+  Set<String> ids=new HashSet<>();for(var t:report.get("tasks"))assertTrue(ids.add(t.get("id").asText()));assertFalse(report.toString().contains("old-hash"));assertFalse(report.toString().contains("password"));assertEquals(events,db.queryForObject("select count(*) from execution_event",Long.class));
+  assertEquals(401,raw(null,"/reports/executions/"+e+".json").statusCode());assertEquals(404,raw("geo","/reports/executions/"+UUID.randomUUID()+".json").statusCode());
+  db.update("insert into execution_event(id,execution_id,actor,role,event_type,reason,evidence,correlation_id,payload) select gen_random_uuid(),?,'geo','GEO','SYNTHETIC','Bound fixture','EV',gen_random_uuid(),'synthetic' from generate_series(1,2001)",e);
+  assertEquals(422,raw("geo","/reports/executions/"+e+".json").statusCode());
+ }
+ @Test void csvPagesAreExhaustiveAndNeutralizeFormulasWhileJsonKeepsOriginalEvidence()throws Exception{
+  UUID a=lot("OC-H-001"),m=approved(a,lot("OC-H-001")),e=id(start(m));String hostile="=HYPERLINK(\"https://invalid.example\")",evidence="EV,\"quoted\"\r\nnext";
+  good("tintoreria","/lots/"+a+"/nonconformities",data(lv(a),Map.of("origin","POST_RELEASE","responsible","calidad","reason",hostile,"evidence",evidence)));
+  var jsonReport=good("geo","/reports/executions/"+e+".json",null);assertEquals(hostile,jsonReport.get("tasks").get(0).get("reason").asText());assertEquals(evidence,jsonReport.get("tasks").get(0).get("evidence").asText());
+  var first=raw("geo","/reports/tasks.csv"+params(m)+"&limit=2");assertEquals(200,first.statusCode(),first.body());assertTrue(first.headers().firstValue("Content-Type").orElse("").contains("text/csv"));assertEquals("4",first.headers().firstValue("X-Total-Count").orElse(""));assertTrue(first.body().contains("\"'=HYPERLINK"));assertTrue(first.body().contains("EV,\"\"quoted\"\"  next"));assertTrue(first.body().contains("SOLO SIMULACIÓN"));
+  var second=raw("geo","/reports/tasks.csv"+params(m)+"&limit=2&asOf="+first.headers().firstValue("X-As-Of").orElseThrow()+"&cursor="+first.headers().firstValue("X-Next-Cursor").orElseThrow());assertEquals(200,second.statusCode(),second.body());assertTrue(second.headers().firstValue("X-Next-Cursor").isEmpty());String combined=first.body()+second.body();for(var t:jsonReport.get("tasks")){String id=t.get("id").asText();assertEquals(1,(combined.length()-combined.replace(id,"").length())/id.length());}
+  assertEquals(401,raw(null,"/reports/tasks.csv").statusCode());assertEquals(400,raw("geo","/reports/tasks.csv?limit=101").statusCode());String malformed=Base64.getUrlEncoder().withoutPadding().encodeToString("bad-date|bad-id".getBytes(StandardCharsets.UTF_8));assertEquals(400,raw("geo","/reports/tasks.csv?cursor="+malformed).statusCode());
+ }
+
+ @Test void paginatedExecutionFilterKeepsItsAsOfWhenParentIncidentCloses()throws Exception{
+  UUID a=lot("OC-H-001"),m=approved(a,lot("OC-H-001")),e=id(start(m));nc(a);var at=clock.instant();String query=params(m)+"&executionStatus=SUSPENDED&limit=2&asOf="+at;
+  var first=good("geo","/monitoring/tasks"+query,null);assertEquals(4,first.get("total").asInt());clock.value.set(at.plusSeconds(60));closeTasks(e);good("produccion","/executions/"+e+"/close-incident",data(1,Map.of()));
+  var second=good("geo","/monitoring/tasks"+query+"&cursor="+first.get("nextCursor").asText(),null);assertEquals(4,second.get("total").asInt());assertEquals(2,second.get("items").size());for(var task:second.get("items")){assertEquals("OPEN",task.get("status").asText());assertEquals(0,task.get("version").asInt());assertEquals("SUSPENDED",task.get("execution_status").asText());}
+ }
 }

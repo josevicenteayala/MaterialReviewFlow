@@ -1,4 +1,5 @@
 import {test,expect,Page,APIRequestContext} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
 test.describe.configure({timeout:90_000});
 const headers=(u:string)=>({Authorization:'Basic '+Buffer.from(u+':Simulacion123!').toString('base64')});
 async function get(r:APIRequestContext,path:string){const x=await r.get('/api'+path,{headers:headers('geo')});expect(x.status(),await x.text()).toBe(200);return x.json();}
@@ -38,4 +39,11 @@ test('reglas OLA: respuesta perdida conserva clave/cuerpo y reintento vuelve a s
 test('cierre normal y heredado se muestran con semántica distinta',async({page,request})=>{
  const {m}=await fixture(request);const e=await post(request,'tejeduria',`/mix-requests/${m.id}/executions`,m.version,{montageCode:m.montageCode});await login(page,'produccion');await board(page);await select(page,m.montageCode);await evidence(page,'Producción simulada completada normalmente');await page.getByRole('button',{name:'Completar producción simulada',exact:true}).click();await expect(page.locator('.executions .detail').getByText('Producción simulada completada',{exact:true}).first()).toBeVisible();expect((await get(request,'/executions/'+e.id)).status).toBe('COMPLETED');
  await page.route('**/api/executions/'+e.id,async route=>{const response=await route.fetch();await route.fulfill({json:{...await response.json(),suspended_at:new Date().toISOString()}});});await page.getByRole('button',{name:'Actualizar montajes y tareas'}).click();await expect(page.locator('.executions .detail').getByText('Cierre heredado tras incidente',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Completar producción simulada',exact:true})).toHaveCount(0);
+});
+
+
+test('exportaciones locales: expediente JSON trazable y CSV de la página filtrada',async({page,request})=>{
+ const {a,m}=await fixture(request);const e=await post(request,'tejeduria',`/mix-requests/${m.id}/executions`,m.version,{montageCode:m.montageCode});await incident(request,a);await login(page,'almacen');await board(page);await select(page,m.montageCode);
+ const jsonDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Exportar expediente JSON',exact:true}).click();const jsonFile=await jsonDownload;expect(jsonFile.suggestedFilename()).toBe('proco-execution-'+e.id+'.json');const report=JSON.parse(await readFile((await jsonFile.path())!,'utf8'));expect(report.legend).toContain('SOLO SIMULACIÓN');expect(report.tasks).toHaveLength(4);expect(report.lots).toHaveLength(2);expect(report.execution.id).toBe(e.id);expect(JSON.stringify(report)).not.toContain('password');
+ await monitoring(page);await page.getByLabel('Montaje exacto').fill(m.montageCode);await page.getByRole('button',{name:'Consultar indicadores',exact:true}).click();await expect(page.getByRole('heading',{name:'Tareas y alertas internas · 4 en la cohorte',exact:true})).toBeVisible();const csvDownload=page.waitForEvent('download');await page.getByRole('button',{name:'Exportar CSV de esta página',exact:true}).click();const csvFile=await csvDownload;expect(csvFile.suggestedFilename()).toBe('proco-tasks.csv');const csv=await readFile((await csvFile.path())!,'utf8');expect(csv).toContain('SOLO SIMULACIÓN');expect(csv).toContain('ola_rule_version');expect(csv.trimEnd().split('\r\n')).toHaveLength(5);for(const t of report.tasks)expect(csv.split(t.id).length-1).toBe(1);expect((await get(request,'/executions/'+e.id)).status).toBe('SUSPENDED');
 });

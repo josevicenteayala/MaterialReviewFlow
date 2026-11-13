@@ -18,6 +18,8 @@ public final class OlaPolicy {
   var row=new LinkedHashMap<>(source);
   Instant ack=instant(row.get("acknowledged_at")),close=instant(row.get("closed_at"));
   if(ack!=null && ack.isAfter(at))ack=null;if(close!=null && close.isAfter(at))close=null;
+  if(row.containsKey("execution_outcome_at"))row.put("execution_status",row.get("execution_outcome_at"));
+  row.put("version",close!=null?2L:ack!=null?1L:0L);
   row.put("status",close!=null?"CLOSED":ack!=null?"ACKNOWLEDGED":"OPEN");
   // A cursor's asOf freezes milestone visibility, including the associated evidence/actor.
   if(ack==null)for(String field:List.of("acknowledged_at","acknowledged_by","ack_reason","ack_evidence"))row.put(field,null);

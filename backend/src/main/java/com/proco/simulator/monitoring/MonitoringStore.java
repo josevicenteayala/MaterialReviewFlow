@@ -19,13 +19,15 @@ public class MonitoringStore {
  private Sql taskScope(MonitoringFilter f){
   StringBuilder q=new StringBuilder("""
    with task_scope as (select t.*,e.montage_code,e.status as execution_status,r.version as ola_rule_version,
+    case when e.ended_at<=? then case when e.status='COMPLETED' and e.suspended_at is not null then 'LEGACY_INCIDENT_CLOSURE' else e.status end when e.suspended_at<=? then 'SUSPENDED' else 'IN_PROGRESS' end as execution_outcome_at,
     case when t.closed_at<=? then 'CLOSED' when t.acknowledged_at<=? then 'ACKNOWLEDGED' else 'OPEN' end as state_at
    from containment_task t join montage_execution e on e.id=t.execution_id left join ola_rule r on r.id=t.ola_rule_id
    where t.created_at>=? and t.created_at<? and t.created_at<=?
    """);
-  List<Object> a=new ArrayList<>(List.of(ts(f.asOf()),ts(f.asOf()),ts(f.from()),ts(f.to()),ts(f.asOf())));
-  if(f.area()!=null){q.append(" and t.target_role=?");a.add(f.area());}executionConditions(q,a,f);
-  q.append(") , tasks as (select * from task_scope where true");if(f.taskStatus()!=null){q.append(" and state_at=?");a.add(f.taskStatus());}q.append(") ");
+  List<Object> a=new ArrayList<>(List.of(ts(f.asOf()),ts(f.asOf()),ts(f.asOf()),ts(f.asOf()),ts(f.from()),ts(f.to()),ts(f.asOf())));
+  if(f.area()!=null){q.append(" and t.target_role=?");a.add(f.area());}
+  if(f.montageCode()!=null){q.append(" and e.montage_code=?");a.add(f.montageCode());}
+  q.append(") , tasks as (select * from task_scope where true");if(f.executionStatus()!=null){q.append(" and execution_outcome_at=?");a.add(f.executionStatus());}if(f.taskStatus()!=null){q.append(" and state_at=?");a.add(f.taskStatus());}q.append(") ");
   return new Sql(q.toString(),a);
  }
  public Map<String,Object> tasks(MonitoringFilter f){

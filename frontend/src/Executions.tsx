@@ -1,7 +1,7 @@
 import {useEffect,useState,type FormEvent} from 'react';
 import type {User} from './types';
 import type {Mix} from './mixingTypes';
-import {read,submit} from './api';
+import {read,submit,download} from './api';
 
 type Task={id:string;execution_id:string;mix_id:string;nc_id:string|null;lot_id:string;source_event_id:string;task_type:string;target_role:string;status:string;version:number;reason:string;evidence:string;acknowledged_by:string|null;ack_evidence:string|null;closed_by:string|null;close_evidence:string|null;montage_code?:string;ack_ola_status?:string;close_ola_status?:string;ola_rule_version?:number;ack_due_at?:string;close_due_at?:string};
 type Execution={id:string;mix_request_id:string;montage_code:string;status:string;version:number;started_by:string;started_at:string;suspended_at:string|null;suspension_reason:string|null;ended_by:string|null;disposition:string|null;tasks?:Task[]};
@@ -25,6 +25,7 @@ export function Executions(p:Props){
   catch(e){p.onError((confirmed?'Comando confirmado; falló la consulta posterior: ':'')+(e as Error).message);}
   finally{p.onPending();p.onBusy(false);}
  }
+ async function exportJson(){if(!detail)return;p.onBusy(true);p.onError('');try{await download('/reports/executions/'+detail.id+'.json',p.credentials,'proco-execution-'+detail.id+'.json');}catch(e){p.onError((e as Error).message);}finally{p.onBusy(false);}}
  async function start(e:FormEvent){e.preventDefault();const m=mixes.find(x=>x.id===mixId);if(m)await command('/mix-requests/'+m.id+'/executions',m.version,{montageCode:m.montageCode});}
  const visibleTasks=tasks.filter(t=>filter==='ALL'||t.status===filter);
  const selectedMix=detail&&mixes.find(m=>m.id===detail.mix_request_id);
@@ -40,7 +41,7 @@ export function Executions(p:Props){
  {detail.suspension_reason&&<p role="status" className="notice">Suspensión: {detail.suspension_reason}. Cerrar la NC o levantar el bloqueo no reanuda este montaje.</p>}
  {selectedMix&&!selectedMix.usable&&detail.status==='IN_PROGRESS'&&<p className="error">Revisión requerida: autorización no utilizable. No se permite completar el montaje; documenta la intervención o cancelación.</p>}
  {['COMPLETED','CLOSED_WITH_INCIDENT'].includes(detail.status)&&detail.tasks?.some(t=>t.status!=='CLOSED')&&<p className="notice">Montaje histórico bajo revisión: existen tareas posteriores pendientes. El cierre anterior se conserva.</p>}
- <button className="link" onClick={()=>p.onMix(detail.mix_request_id)}>Ver mezcla vinculada</button>{detail.disposition&&<p>Disposición: {detail.disposition} · {detail.ended_by}</p>}
+ <button className="link" onClick={()=>p.onMix(detail.mix_request_id)}>Ver mezcla vinculada</button><button className="secondary" disabled={p.disabled} onClick={exportJson}>Exportar expediente JSON</button>{detail.disposition&&<p>Disposición: {detail.disposition} · {detail.ended_by}</p>}
  <h4>Coordinación entre áreas</h4>{detail.tasks?.map(t=><article className="opinion" key={t.id}><b>{roles[t.target_role]} · {types[t.task_type]} · {states[t.status]}</b><p>{t.reason}</p>{t.ack_ola_status&&<p>OLA DEMO {t.ola_rule_version?'v'+t.ola_rule_version:''} · Acuse: {olaNames[t.ack_ola_status]} · Cierre: {olaNames[t.close_ola_status||'NOT_CONFIGURED']}</p>}<p>Evidencia inicial: {t.evidence}</p><small>Tarea {t.id} · Evento {t.source_event_id}{t.nc_id&&' · NC '+t.nc_id}</small><p><button className="link" onClick={()=>p.onLot(t.lot_id)}>Ver lote y expediente NC</button></p>{t.acknowledged_by&&<p>Acuse: {t.acknowledged_by} · {t.ack_evidence}</p>}{t.closed_by&&<p>Acción completada: {t.closed_by} · {t.close_evidence}</p>}
  {t.target_role===p.user.role&&t.status==='OPEN'&&<button disabled={!ready} onClick={()=>command('/tasks/'+t.id+'/acknowledge',t.version)}>Acusar tarea {roles[t.target_role]}</button>}
  {t.target_role===p.user.role&&t.status==='ACKNOWLEDGED'&&t.acknowledged_by===p.user.username&&<button disabled={!ready} onClick={()=>command('/tasks/'+t.id+'/complete',t.version)}>Completar tarea {roles[t.target_role]}</button>}</article>)}
