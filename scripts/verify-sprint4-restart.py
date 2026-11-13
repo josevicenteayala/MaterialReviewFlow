@@ -25,6 +25,10 @@ def snapshot():
         result[table] = {'rows': len(rows), 'sha256': hashlib.sha256(raw).hexdigest()}
     return result
 
+# Sprint 5 extends the same read-only snapshot without changing the Sprint 4 invocation.
+exists = subprocess.check_output(compose + ['exec', '-T', 'db', 'psql', '-U', 'proco', '-d', 'proco', '-At', '-c', "select to_regclass('ola_rule') is not null"]).strip()
+if exists == b't':
+    tables.append('ola_rule')
 before = snapshot()
 assert before['montage_execution']['rows'] > 0, 'Run Sprint 4 E2E fixtures first'
 assert before['containment_task']['rows'] > 0, 'No containment data to verify'

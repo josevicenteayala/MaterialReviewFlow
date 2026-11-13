@@ -24,7 +24,7 @@ class ExecutionMigrationUpgradeTest {
    db.update("insert into command_result(actor,command_key,fingerprint,mix_id) values ('approver',?,'original fingerprint',?)",key,mix);
    var tables=db.queryForList("select tablename from pg_tables where schemaname=? and tablename<>'flyway_schema_history' order by tablename",String.class,schema);
    Map<String,List<String>> before=new HashMap<>();for(String t:tables)before.put(t,rows(db,t));
-   Flyway.configure().dataSource(source).schemas(schema).load().migrate();
+   Flyway.configure().dataSource(source).schemas(schema).target("5").load().migrate();
    for(String t:tables)assertEquals(before.get(t),rows(db,t),t);
    assertEquals(5,db.queryForObject("select max(version::integer) from flyway_schema_history where success",Integer.class));
    assertEquals(0,db.queryForObject("select count(*) from montage_execution",Integer.class));

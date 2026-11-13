@@ -43,4 +43,7 @@ public class AuditLog {
   appendExecution(execution,taskId,null,null,null,actor,role,reason.startsWith("Revisión requerida")?"REVIEW_REQUIRED":"COMMAND_DENIED",null,null,reason,"Intento rechazado",correlation,payload);
  }
  public List<Map<String,Object>> executionTimeline(UUID id){return db.queryForList("select * from execution_event where execution_id=? order by occurred_at,id",id);}
+ public void appendOla(UUID rule,String actor,String role,String reason,String evidence,UUID key,String payload){
+  db.update("insert into execution_event(id,ola_rule_id,actor,role,event_type,reason,evidence,correlation_id,payload,rule_version) values (?,?,?,?,'OLA_RULE_CREATED',?,?,?,?,'SIM-5')",UUID.randomUUID(),rule,actor,role,reason,evidence,key,payload);
+ }
 }
