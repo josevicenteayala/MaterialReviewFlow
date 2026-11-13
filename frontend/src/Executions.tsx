@@ -25,6 +25,7 @@ export function Executions(p:Props){
   finally{p.onPending();p.onBusy(false);}
  }
  async function start(e:FormEvent){e.preventDefault();const m=mixes.find(x=>x.id===mixId);if(m)await command('/mix-requests/'+m.id+'/executions',m.version,{montageCode:m.montageCode});}
+ const visibleTasks=tasks.filter(t=>filter==='ALL'||t.status===filter);
  const selectedMix=detail&&mixes.find(m=>m.id===detail.mix_request_id);
  return <section className="executions"><h2>Montajes y contención</h2><p className="next">SOLO SIMULACIÓN — sin reserva, consumo, parada física de máquinas ni notificaciones externas.</p>
  <div className="sectiontitle"><p>Cada área confirma su propia acción con evidencia.</p><button disabled={p.disabled} onClick={()=>load().catch(e=>p.onError(e.message))}>Actualizar montajes y tareas</button></div>
@@ -32,7 +33,7 @@ export function Executions(p:Props){
  {p.user.role==='PRODUCTION_REQUESTER'&&<form onSubmit={start}><label>Autorización para iniciar<select value={mixId} onChange={e=>setMixId(e.target.value)}><option value="">Seleccionar autorización vigente</option>{mixes.filter(m=>m.usable&&!list.some(e=>e.mix_request_id===m.id)).map(m=><option key={m.id} value={m.id}>{m.montageCode} · {m.id}</option>)}</select></label><button disabled={!ready||!mixId}>Iniciar montaje simulado</button><p className="notice">El servidor revalida lotes, vigencia y versión al iniciar.</p></form>}
  </section>
  <div className="columns"><section className="card queue"><h3>Mis tareas · {roles[p.user.role]||p.user.role}</h3><label>Estado de tarea<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="ALL">Todos</option>{['OPEN','ACKNOWLEDGED','CLOSED'].map(s=><option key={s} value={s}>{states[s]}</option>)}</select></label>
- {tasks.filter(t=>filter==='ALL'||t.status===filter).map(t=><button key={t.id} className="lot" onClick={()=>p.onSelect(t.execution_id)}><b>{t.montage_code}</b><p>{types[t.task_type]} · {states[t.status]}</p><small>{t.id}</small></button>)}{!tasks.length&&<p>Sin tareas para esta área.</p>}
+ {visibleTasks.map(t=><button key={t.id} className="lot" onClick={()=>p.onSelect(t.execution_id)}><b>{t.montage_code}</b><p>{types[t.task_type]} · {states[t.status]}</p><small>{t.id}</small></button>)}{!visibleTasks.length&&<p>{tasks.length?'Sin tareas para este filtro.':'Sin tareas para esta área.'}</p>}
  <h3>Ejecuciones</h3>{list.map(e=><button key={e.id} className={'lot '+(p.selected===e.id?'selected':'')} onClick={()=>p.onSelect(e.id)}><b>{e.montage_code}</b><p>{states[e.status]}</p></button>)}</section>
  <section className="card detail">{!detail?<p>Selecciona una ejecución.</p>:<><h3>Montaje simulado · {detail.montage_code}</h3><p className={'badge '+detail.status}>{states[detail.status]}</p><p>{detail.id} · Versión {detail.version}</p><p>Inicio: {detail.started_by} · {new Date(detail.started_at).toLocaleString('es-CO')}</p>
  {detail.suspension_reason&&<p role="status" className="notice">Suspensión: {detail.suspension_reason}. Cerrar la NC o levantar el bloqueo no reanuda este montaje.</p>}

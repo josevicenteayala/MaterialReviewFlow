@@ -71,3 +71,9 @@ Los nombres y expectativas se contrastaron con la tabla de escenarios del proced
 ## Límites de la entrega
 
 P0 S4-01/02/03/04/08 y bandeja mínima para usarlos. No se incluye OLA, indicadores, CSV/JSON, cancelación administrativa de tareas, reanudación, consumo/reserva, máquinas, ERP ni notificaciones externas. REVIEW_REQUIRED por caducidad se registra cuando se intenta completar, sin proceso temporal externo. Las autorizaciones por montaje y autoridades operativas siguen siendo hipótesis explícitas de simulación.
+
+## Ajuste de revisión — filtros de Mis tareas
+
+El comentario del PR #3 sobre el estado vacío aplica: la lista se filtraba por estado pero el mensaje usaba la longitud total. Se comparte `visibleTasks` entre renderizado y condición de vacío, con mensajes distintos para área sin tareas y filtro sin coincidencias.
+
+La nueva prueba de navegador reprodujo la ausencia del mensaje con la versión anterior una vez listo el backend. Tras el ajuste, `npm --prefix frontend run build` y `git diff --check` terminaron correctamente; `E2E_URL=http://127.0.0.1:18092 PLAYWRIGHT_BROWSERS_PATH=/tmp/proco-playwright npm --prefix frontend run test:e2e -- sprint4.spec.ts` aprobó **5 escenarios en 26,2 s**. El nuevo caso valida área vacía, tarea OPEN existente, filtros ACKNOWLEDGED/CLOSED sin resultados y retorno a OPEN/ALL con mensaje retirado. Solo se simula la respuesta GET de tareas para aislar esta condición visual; los otros cuatro casos conservan la integración real. Los resultados de 48/16 anteriores permanecen asociados a su entrega; el nuevo caso aumenta a 17 el conjunto de navegador ejecutado por CI, cuyo resultado por SHA se enlaza en el PR.

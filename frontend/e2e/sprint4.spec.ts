@@ -42,3 +42,25 @@ test('alerta retrospectiva preserva montaje finalizado y rechazo crea tarea de A
  const {a,m}=await fixture(request);let e=await post(request,'tejeduria',`/mix-requests/${m.id}/executions`,m.version,{montageCode:m.montageCode});e=await post(request,'produccion',`/executions/${e.id}/complete`,e.version);await incident(request,a);const cases=await get(request,`/lots/${a.id}/nonconformities`),n=cases[0];let l=await get(request,'/lots/'+a.id);l=await post(request,'aprobador',`/lots/${a.id}/nonconformities/${n.id}/opinion`,l.version,{outcome:'NONCONFORMING'});await post(request,'calidad',`/lots/${a.id}/nonconformities/${n.id}/reject`,l.version,{disposition:'RETURN_TO_SUPPLIER'});
  await login(page,'abastecimiento');await board(page);await select(page,m.montageCode);await expect(page.locator('.executions .detail').getByText('Finalizado',{exact:true})).toBeVisible();await expect(page.locator('.executions .detail .opinion').filter({hasText:' · Evaluación retrospectiva · '})).toHaveCount(4);await evidence(page);await page.getByRole('button',{name:'Acusar tarea Abastecimiento',exact:true}).click();await expect(page.getByRole('button',{name:'Completar tarea Abastecimiento',exact:true})).toBeVisible();await evidence(page,'Coordinación ficticia sin devolución física');await page.getByRole('button',{name:'Completar tarea Abastecimiento',exact:true}).click();await expect(page.locator('.executions .detail').getByText('Acción completada: abastecimiento · EV-S4-UI',{exact:true})).toBeVisible();
 });
+
+test('Mis tareas muestra estado vacío al filtrar sin coincidencias y lo retira al volver',async({page})=>{
+ let hasTask=false;
+ const task={id:'TASK-FILTER-S4',execution_id:crypto.randomUUID(),mix_id:crypto.randomUUID(),nc_id:null,lot_id:crypto.randomUUID(),source_event_id:crypto.randomUUID(),task_type:'CONTAINMENT',target_role:'WAREHOUSE',status:'OPEN',version:0,reason:'Fixture de filtro',evidence:'EV-FILTER',acknowledged_by:null,ack_evidence:null,closed_by:null,close_evidence:null,montage_code:'MONTAJE-FILTRO-S4'};
+ await page.route('**/api/tasks',route=>route.fulfill({json:hasTask?[task]:[]}));
+ await login(page,'almacen');await board(page);
+ const queue=page.locator('.executions .queue');
+ const row=queue.getByRole('button').filter({has:page.getByText(task.id,{exact:true})});
+ await expect(queue.getByText('Sin tareas para esta área.',{exact:true})).toBeVisible();
+ hasTask=true;await page.getByRole('button',{name:'Actualizar montajes y tareas'}).click();
+ await expect(row).toBeVisible();await expect(queue.getByText('Sin tareas para esta área.',{exact:true})).toHaveCount(0);
+ for(const state of ['ACKNOWLEDGED','CLOSED']){
+  await page.getByLabel('Estado de tarea').selectOption(state);
+  await expect(row).toHaveCount(0);
+  await expect(queue.getByText('Sin tareas para este filtro.',{exact:true})).toBeVisible();
+ }
+ for(const state of ['OPEN','ALL']){
+  await page.getByLabel('Estado de tarea').selectOption(state);
+  await expect(row).toBeVisible();
+  await expect(queue.getByText('Sin tareas para este filtro.',{exact:true})).toHaveCount(0);
+ }
+});
