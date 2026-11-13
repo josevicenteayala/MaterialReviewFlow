@@ -26,7 +26,7 @@ public class CommandRunner {
     }
 
     public Lot run(UUID lotId, UUID key, String actor, String role, String fingerprint, Supplier<Lot> command) {
-        try { return transact(key,actor,fingerprint,false,command,lots::get,Lot::id); }
+        try { return transact(key,actor,fingerprint,"lot_id",command,lots::get,Lot::id); }
         catch (RuleException ex) {
             audit.denied(lotId,actor,role,ex.getMessage(),key,fingerprint);
             throw ex;
@@ -35,28 +35,38 @@ public class CommandRunner {
 
     public <T> T runMix(UUID mixId, UUID key, String actor, String role, String fingerprint,
             Supplier<T> command, Function<UUID,T> load, Function<T,UUID> identify) {
-        try { return transact(key,actor,fingerprint,true,command,load,identify); }
+        try { return transact(key,actor,fingerprint,"mix_id",command,load,identify); }
         catch (RuleException ex) {
             audit.deniedMix(mixId,actor,role,ex.getMessage(),key,fingerprint);
             throw ex;
         }
     }
 
-    private <T> T transact(UUID key,String actor,String fingerprint,boolean mix,
+    /** Internal allowlist only: target column never originates in a request. */
+    public <T> T runExecution(UUID id, boolean task, UUID key, String actor, String role, String fingerprint,
+            Supplier<T> command, Function<UUID,T> load, Function<T,UUID> identify) {
+        try { return transact(key,actor,fingerprint,task?"task_id":"execution_id",command,load,identify); }
+        catch (RuleException ex) {
+            audit.deniedExecution(id,task,actor,role,ex.getMessage(),key,fingerprint);
+            throw ex;
+        }
+    }
+
+    private <T> T transact(UUID key,String actor,String fingerprint,String target,
             Supplier<T> command,Function<UUID,T> load,Function<T,UUID> identify) {
         return tx.execute(status -> {
             db.queryForList("select pg_advisory_xact_lock(hashtextextended(?,0))",actor+key);
-            var replay=db.queryForList("select fingerprint,lot_id,mix_id from command_result where actor=? and command_key=?",actor,key);
+            var replay=db.queryForList("select fingerprint,lot_id,mix_id,execution_id,task_id from command_result where actor=? and command_key=?",actor,key);
             if(!replay.isEmpty()) {
                 var row=replay.getFirst();
-                require(fingerprint.equals(row.get("fingerprint")) && row.get(mix?"mix_id":"lot_id")!=null,409,
+                require(fingerprint.equals(row.get("fingerprint")) && row.get(target)!=null,409,
                         "Clave de idempotencia reutilizada con otro comando");
-                return load.apply((UUID)row.get(mix?"mix_id":"lot_id"));
+                return load.apply((UUID)row.get(target));
             }
             T result=command.get();
             UUID id=identify.apply(result);
-            db.update("insert into command_result(actor,command_key,fingerprint,lot_id,mix_id) values (?,?,?,?,?)",
-                    actor,key,fingerprint,mix?null:id,mix?id:null);
+            db.update("insert into command_result(actor,command_key,fingerprint,"+target+") values (?,?,?,?)",
+                    actor,key,fingerprint,id);
             return result;
         });
     }

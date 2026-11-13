@@ -30,4 +30,17 @@ public class AuditLog {
  }
  public List<Map<String,Object>> mixTimeline(UUID mix){return db.queryForList("select * from mix_event where mix_id=? order by occurred_at,id",mix);}
 
+
+ public void appendExecution(UUID execution,UUID task,UUID lot,UUID mix,UUID nc,String actor,String role,String event,String from,String to,String reason,String evidence,UUID correlation,String payload){
+  db.update("insert into execution_event(id,execution_id,task_id,lot_id,mix_id,nc_id,actor,role,event_type,from_state,to_state,reason,evidence,correlation_id,payload) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+   UUID.randomUUID(),execution,task,lot,mix,nc,actor,role,event,from,to,reason,evidence,correlation,payload);
+ }
+ @Transactional(propagation=Propagation.REQUIRES_NEW)
+ public void deniedExecution(UUID id,boolean task,String actor,String role,String reason,UUID correlation,String payload){
+  UUID execution=null,taskId=null;
+  if(id!=null && task){var rows=db.queryForList("select execution_id from containment_task where id=?",id);if(!rows.isEmpty()){execution=(UUID)rows.getFirst().get("execution_id");taskId=id;}}
+  else if(id!=null && Boolean.TRUE.equals(db.queryForObject("select exists(select 1 from montage_execution where id=?)",Boolean.class,id)))execution=id;
+  appendExecution(execution,taskId,null,null,null,actor,role,reason.startsWith("Revisión requerida")?"REVIEW_REQUIRED":"COMMAND_DENIED",null,null,reason,"Intento rechazado",correlation,payload);
+ }
+ public List<Map<String,Object>> executionTimeline(UUID id){return db.queryForList("select * from execution_event where execution_id=? order by occurred_at,id",id);}
 }

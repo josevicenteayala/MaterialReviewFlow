@@ -1,0 +1,66 @@
+import {test,expect,Page,APIRequestContext} from '@playwright/test';
+test.describe.configure({timeout:90_000});
+const headers=(u:string)=>({Authorization:'Basic '+Buffer.from(u+':Simulacion123!').toString('base64')});
+async function get(r:APIRequestContext,path:string){const x=await r.get('/api'+path,{headers:headers('geo')});expect(x.status(),await x.text()).toBe(200);return x.json();}
+async function post(r:APIRequestContext,u:string,path:string,version:number,fields:Record<string,unknown>={}){const x=await r.post('/api'+path,{headers:{...headers(u),'Idempotency-Key':crypto.randomUUID()},data:{version,reason:'Fixture Sprint 4',evidence:'EV-S4',...fields}});expect(x.status(),await x.text()).toBe(200);return x.json();}
+async function lot(r:APIRequestContext,order='OC-H-001'){
+ let l=await post(r,'almacen','/receipts',0,{orderCode:order,supplierLot:'E2E-S4-'+crypto.randomUUID(),productionDate:'2026-01-01',quantity:1,location:'SIM-S4'});
+ for(const [u,a,f] of [['calidad','inspect',{conforms:true}],['almacen','sample',{sampleCode:'M-S4'}],['tecnico','test',{resultValue:order==='OC-H-001'?15:500}],['aprobador','release',{}],['almacen','available',{}]] as const)l=await post(r,u,`/lots/${l.id}/${a}`,l.version,f);return l;
+}
+async function fixture(r:APIRequestContext,dyeing=false){const a=await lot(r),b=await lot(r,dyeing?'OC-E-001':'OC-H-001');let m=await post(r,'tejeduria','/mix-requests',0,{montageCode:'E2E-S4-'+crypto.randomUUID(),validUntil:new Date(Date.now()+172800000).toISOString(),items:[{lotId:a.id,quantity:0.4},{lotId:b.id,quantity:0.5}]});for(const u of ['aprobador','geo','calidad',...(dyeing?['tintoreria']:[])])m=await post(r,u,`/mix-requests/${m.id}/assessments`,m.version,{outcome:'FAVORABLE'});m=await post(r,'produccion',`/mix-requests/${m.id}/decision`,m.version,{decision:'AUTHORIZE'});return {a,b,m};}
+async function login(p:Page,u:string){await p.goto('/');await p.getByLabel('Usuario').selectOption(u);await p.getByLabel('Contraseña').fill('Simulacion123!');await p.getByRole('button',{name:'Entrar a la simulación'}).click();await expect(p.getByRole('heading',{name:'Recepción y liberación',exact:true})).toBeVisible();}
+async function board(p:Page){await p.getByRole('button',{name:'Montajes y tareas',exact:true}).click();await expect(p.getByRole('heading',{name:'Ejecución y contención',exact:true})).toBeVisible();}
+async function select(p:Page,code:string){await p.locator('.executions .queue button.lot').filter({has:p.locator('b',{hasText:code})}).last().click();await expect(p.getByRole('heading',{name:'Montaje simulado · '+code,exact:true})).toBeVisible();}
+async function evidence(p:Page,text='Acción simulada confirmada'){await p.getByLabel('Motivo de acción de montaje').fill(text);await p.getByLabel('Evidencia de acción de montaje').fill('EV-S4-UI');}
+async function switchActor(p:Page,u:string,code:string){await p.getByRole('button',{name:'Salir',exact:true}).click();await login(p,u);await board(p);await select(p,code);}
+async function incident(r:APIRequestContext,a:{id:string}){const l=await get(r,'/lots/'+a.id);return post(r,'tintoreria',`/lots/${a.id}/nonconformities`,l.version,{origin:'POST_RELEASE',responsible:'calidad'});}
+
+test('S09: montaje iniciado, NC, cinco áreas confirman y Producción dispone',async({page,request})=>{
+ const {a,m}=await fixture(request,true);await login(page,'tejeduria');await board(page);await page.getByLabel('Autorización para iniciar').selectOption(m.id);await evidence(page,'Inicio simulado S09');await page.getByRole('button',{name:'Iniciar montaje simulado',exact:true}).click();await expect(page.getByRole('heading',{name:'Montaje simulado · '+m.montageCode,exact:true})).toBeVisible();await expect(page.locator('.executions .detail').getByText('En ejecución simulada',{exact:true})).toBeVisible();
+ await incident(request,a);await page.getByRole('button',{name:'Actualizar montajes y tareas'}).click();await expect(page.locator('.executions .detail').getByText('Suspendido',{exact:true})).toBeVisible();await expect(page.locator('.executions .detail .opinion').filter({hasText:'Contención simulada'})).toHaveCount(5);
+ await switchActor(page,'produccion',m.montageCode);await evidence(page);await expect(page.getByRole('button',{name:'Finalizar con disposición'})).toBeDisabled();
+ for(const [u,area] of [['almacen','Almacén'],['calidad','Calidad'],['tejeduria','Tejeduría'],['geo','GEO'],['tintoreria','Tintorería']]){await switchActor(page,u,m.montageCode);await evidence(page,'Acuse de '+area);await page.getByRole('button',{name:'Acusar tarea '+area,exact:true}).click();await expect(page.getByRole('button',{name:'Completar tarea '+area,exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Completar tarea '+area,exact:true})).toBeDisabled();await evidence(page,'Contención confirmada por '+area);await page.getByRole('button',{name:'Completar tarea '+area,exact:true}).click();await expect(page.locator('.executions .detail').getByText('Acción completada: '+u+' · EV-S4-UI',{exact:true})).toBeVisible();}
+ await switchActor(page,'produccion',m.montageCode);await evidence(page,'Disposición documentada de montaje suspendido');await page.getByRole('button',{name:'Finalizar con disposición'}).click();await expect(page.locator('.executions .detail').getByText('Finalizado',{exact:true})).toBeVisible();await page.screenshot({path:'test-results/s04-s09-containment.png',fullPage:true});
+ const ms=await get(request,'/mix-requests/'+m.id);expect(ms.status).toBe('REVOKED');expect((await get(request,'/lots/'+a.id)).inventoryState).toBe('BLOCKED');
+});
+
+test('inicio con respuesta perdida conserva clave y cuerpo al recargar',async({page,request})=>{
+ const {m}=await fixture(request);await login(page,'tejeduria');await board(page);await page.getByLabel('Autorización para iniciar').selectOption(m.id);await evidence(page);
+ const seen:{key:string|undefined;body:string|null}[]=[];
+ await page.route('**/api/mix-requests/*/executions',async route=>{seen.push({key:route.request().headers()['idempotency-key'],body:route.request().postData()});const response=await route.fetch();expect(response.status()).toBe(200);if(seen.length===1)await route.abort('failed');else await route.fulfill({response});});
+ await page.getByRole('button',{name:'Iniciar montaje simulado',exact:true}).click();await expect(page.getByRole('heading',{name:'Comando sin confirmar'})).toBeVisible();await page.reload();await login(page,'tejeduria');await page.getByRole('button',{name:'Reintentar el mismo comando'}).click();await expect(page.getByRole('heading',{name:'Montaje simulado · '+m.montageCode,exact:true})).toBeVisible();expect(seen).toHaveLength(2);expect(seen[1]).toEqual(seen[0]);expect((await get(request,'/executions')).filter((e:{mix_request_id:string})=>e.mix_request_id===m.id)).toHaveLength(1);
+});
+
+test('acuse con respuesta perdida vuelve al expediente de ejecución sin contaminar lotes',async({page,request})=>{
+ const {a,m}=await fixture(request);const e=await post(request,'tejeduria',`/mix-requests/${m.id}/executions`,m.version,{montageCode:m.montageCode});await incident(request,a);
+ await login(page,'almacen');await board(page);await select(page,m.montageCode);await evidence(page);const seen:string[]=[];
+ await page.route('**/api/tasks/*/acknowledge',async route=>{seen.push(route.request().headers()['idempotency-key']+'|'+route.request().postData());const response=await route.fetch();expect(response.status()).toBe(200);if(seen.length===1)await route.abort('failed');else await route.fulfill({response});});
+ await page.getByRole('button',{name:'Acusar tarea Almacén',exact:true}).click();await expect(page.getByRole('heading',{name:'Comando sin confirmar'})).toBeVisible();await page.reload();await login(page,'almacen');await page.getByRole('button',{name:'Reintentar el mismo comando'}).click();await expect(page.getByRole('heading',{name:'Montaje simulado · '+m.montageCode,exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Completar tarea Almacén',exact:true})).toBeVisible();expect(seen).toHaveLength(2);expect(seen[1]).toBe(seen[0]);const after=await get(request,'/executions/'+e.id);expect(after.tasks.filter((t:{target_role:string})=>t.target_role==='WAREHOUSE')[0].version).toBe(1);
+});
+
+test('alerta retrospectiva preserva montaje finalizado y rechazo crea tarea de Abastecimiento',async({page,request})=>{
+ const {a,m}=await fixture(request);let e=await post(request,'tejeduria',`/mix-requests/${m.id}/executions`,m.version,{montageCode:m.montageCode});e=await post(request,'produccion',`/executions/${e.id}/complete`,e.version);await incident(request,a);const cases=await get(request,`/lots/${a.id}/nonconformities`),n=cases[0];let l=await get(request,'/lots/'+a.id);l=await post(request,'aprobador',`/lots/${a.id}/nonconformities/${n.id}/opinion`,l.version,{outcome:'NONCONFORMING'});await post(request,'calidad',`/lots/${a.id}/nonconformities/${n.id}/reject`,l.version,{disposition:'RETURN_TO_SUPPLIER'});
+ await login(page,'abastecimiento');await board(page);await select(page,m.montageCode);await expect(page.locator('.executions .detail').getByText('Finalizado',{exact:true})).toBeVisible();await expect(page.locator('.executions .detail .opinion').filter({hasText:' · Evaluación retrospectiva · '})).toHaveCount(4);await evidence(page);await page.getByRole('button',{name:'Acusar tarea Abastecimiento',exact:true}).click();await expect(page.getByRole('button',{name:'Completar tarea Abastecimiento',exact:true})).toBeVisible();await evidence(page,'Coordinación ficticia sin devolución física');await page.getByRole('button',{name:'Completar tarea Abastecimiento',exact:true}).click();await expect(page.locator('.executions .detail').getByText('Acción completada: abastecimiento · EV-S4-UI',{exact:true})).toBeVisible();
+});
+
+test('Mis tareas muestra estado vacío al filtrar sin coincidencias y lo retira al volver',async({page})=>{
+ let hasTask=false;
+ const task={id:'TASK-FILTER-S4',execution_id:crypto.randomUUID(),mix_id:crypto.randomUUID(),nc_id:null,lot_id:crypto.randomUUID(),source_event_id:crypto.randomUUID(),task_type:'CONTAINMENT',target_role:'WAREHOUSE',status:'OPEN',version:0,reason:'Fixture de filtro',evidence:'EV-FILTER',acknowledged_by:null,ack_evidence:null,closed_by:null,close_evidence:null,montage_code:'MONTAJE-FILTRO-S4'};
+ await page.route('**/api/tasks',route=>route.fulfill({json:hasTask?[task]:[]}));
+ await login(page,'almacen');await board(page);
+ const queue=page.locator('.executions .queue');
+ const row=queue.getByRole('button').filter({has:page.getByText(task.id,{exact:true})});
+ await expect(queue.getByText('Sin tareas para esta área.',{exact:true})).toBeVisible();
+ hasTask=true;await page.getByRole('button',{name:'Actualizar montajes y tareas'}).click();
+ await expect(row).toBeVisible();await expect(queue.getByText('Sin tareas para esta área.',{exact:true})).toHaveCount(0);
+ for(const state of ['ACKNOWLEDGED','CLOSED']){
+  await page.getByLabel('Estado de tarea').selectOption(state);
+  await expect(row).toHaveCount(0);
+  await expect(queue.getByText('Sin tareas para este filtro.',{exact:true})).toBeVisible();
+ }
+ for(const state of ['OPEN','ALL']){
+  await page.getByLabel('Estado de tarea').selectOption(state);
+  await expect(row).toBeVisible();
+  await expect(queue.getByText('Sin tareas para este filtro.',{exact:true})).toHaveCount(0);
+ }
+});

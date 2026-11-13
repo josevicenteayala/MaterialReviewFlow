@@ -1,0 +1,49 @@
+import {useEffect,useState,type FormEvent} from 'react';
+import type {User} from './types';
+import type {Mix} from './mixingTypes';
+import {read,submit} from './api';
+
+type Task={id:string;execution_id:string;mix_id:string;nc_id:string|null;lot_id:string;source_event_id:string;task_type:string;target_role:string;status:string;version:number;reason:string;evidence:string;acknowledged_by:string|null;ack_evidence:string|null;closed_by:string|null;close_evidence:string|null;montage_code?:string};
+type Execution={id:string;mix_request_id:string;montage_code:string;status:string;version:number;started_by:string;started_at:string;suspended_at:string|null;suspension_reason:string|null;ended_by:string|null;disposition:string|null;tasks?:Task[]};
+type Event={id:string;event_type:string;actor:string;role:string;occurred_at:string;reason:string;evidence:string;correlation_id:string;nc_id:string|null};
+type Props={user:User;credentials:string;selected:string|null;onSelect:(id:string|null)=>void;refreshToken:number;disabled:boolean;onBusy:(v:boolean)=>void;onPending:()=>void;onError:(v:string)=>void;onConfirmed:()=>Promise<void>;onLot:(id:string)=>void;onMix:(id:string)=>void};
+const roles:Record<string,string>={WAREHOUSE:'Almacén',QUALITY:'Calidad',PRODUCTION_REQUESTER:'Tejeduría',PRODUCTION_APPROVER:'Producción',GEO:'GEO',DYEING:'Tintorería',PROCUREMENT:'Abastecimiento'};
+const states:Record<string,string>={IN_PROGRESS:'En ejecución simulada',SUSPENDED:'Suspendido',COMPLETED:'Finalizado',CANCELLED:'Cancelado',OPEN:'Abierta',ACKNOWLEDGED:'Acusada',CLOSED:'Cerrada'};
+const eventNames:Record<string,string>={STARTED:'Montaje iniciado',SUSPENDED:'Montaje suspendido',TASK_CREATED:'Tarea creada',TASK_ACKNOWLEDGED:'Acuse registrado',TASK_CLOSED:'Acción de contención completada',COMPLETED:'Montaje finalizado',CANCELLED:'Montaje cancelado',RETROSPECTIVE_ALERT:'Evaluación retrospectiva requerida',CONTAINMENT_REQUIRED:'Nueva contención requerida',REVIEW_REQUIRED:'Revisión de vigencia requerida',COMMAND_DENIED:'Acción rechazada'};
+const types:Record<string,string>={CONTAINMENT:'Contención simulada',RETROSPECTIVE_REVIEW:'Evaluación retrospectiva',REJECTION_COORDINATION:'Coordinación ficticia de rechazo'};
+export function Executions(p:Props){
+ const [list,setList]=useState<Execution[]>([]),[tasks,setTasks]=useState<Task[]>([]),[mixes,setMixes]=useState<Mix[]>([]),[detail,setDetail]=useState<Execution|null>(null),[events,setEvents]=useState<Event[]>([]);
+ const [mixId,setMixId]=useState(''),[reason,setReason]=useState(''),[evidence,setEvidence]=useState(''),[filter,setFilter]=useState('ALL');
+ async function load(){const [es,ts,ms]=await Promise.all([read<Execution[]>('/executions',p.credentials),read<Task[]>('/tasks',p.credentials),read<Mix[]>('/mix-requests',p.credentials)]);setList(es);setTasks(ts);setMixes(ms);if(p.selected){const [d,ev]=await Promise.all([read<Execution>('/executions/'+p.selected,p.credentials),read<Event[]>('/executions/'+p.selected+'/timeline',p.credentials)]);setDetail(d);setEvents(ev);}}
+ useEffect(()=>{let cancelled=false;async function refresh(){try{const [es,ts,ms]=await Promise.all([read<Execution[]>('/executions',p.credentials),read<Task[]>('/tasks',p.credentials),read<Mix[]>('/mix-requests',p.credentials)]);if(!cancelled){setList(es);setTasks(ts);setMixes(ms);}}catch(e){if(!cancelled)p.onError((e as Error).message);}}refresh();return()=>{cancelled=true;};},[p.credentials,p.refreshToken]);
+ useEffect(()=>{let cancelled=false;setDetail(null);setEvents([]);setReason('');setEvidence('');if(p.selected)Promise.all([read<Execution>('/executions/'+p.selected,p.credentials),read<Event[]>('/executions/'+p.selected+'/timeline',p.credentials)]).then(([d,ev])=>{if(!cancelled){setDetail(d);setEvents(ev);}}).catch(e=>{if(!cancelled)p.onError(e.message);});return()=>{cancelled=true;};},[p.selected,p.credentials,p.refreshToken]);
+ const ready=!p.disabled&&!!reason.trim()&&!!evidence.trim();
+ async function command(path:string,version:number,extra:Record<string,unknown>={}){
+  p.onBusy(true);p.onError('');let confirmed=false;
+  try{const result=await submit<{id:string;version:number;execution_id?:string}>(p.user.username,p.credentials,path,{version,reason,evidence,...extra},'Acción de montaje/contención');confirmed=true;p.onSelect(result.execution_id||result.id);setReason('');setEvidence('');await p.onConfirmed();}
+  catch(e){p.onError((confirmed?'Comando confirmado; falló la consulta posterior: ':'')+(e as Error).message);}
+  finally{p.onPending();p.onBusy(false);}
+ }
+ async function start(e:FormEvent){e.preventDefault();const m=mixes.find(x=>x.id===mixId);if(m)await command('/mix-requests/'+m.id+'/executions',m.version,{montageCode:m.montageCode});}
+ const visibleTasks=tasks.filter(t=>filter==='ALL'||t.status===filter);
+ const selectedMix=detail&&mixes.find(m=>m.id===detail.mix_request_id);
+ return <section className="executions"><h2>Montajes y contención</h2><p className="next">SOLO SIMULACIÓN — sin reserva, consumo, parada física de máquinas ni notificaciones externas.</p>
+ <div className="sectiontitle"><p>Cada área confirma su propia acción con evidencia.</p><button disabled={p.disabled} onClick={()=>load().catch(e=>p.onError(e.message))}>Actualizar montajes y tareas</button></div>
+ <section className="card"><label>Motivo de acción de montaje<textarea maxLength={2000} value={reason} onChange={e=>setReason(e.target.value)}/></label><label>Evidencia de acción de montaje<input maxLength={2000} value={evidence} onChange={e=>setEvidence(e.target.value)}/></label>
+ {p.user.role==='PRODUCTION_REQUESTER'&&<form onSubmit={start}><label>Autorización para iniciar<select value={mixId} onChange={e=>setMixId(e.target.value)}><option value="">Seleccionar autorización vigente</option>{mixes.filter(m=>m.usable&&!list.some(e=>e.mix_request_id===m.id)).map(m=><option key={m.id} value={m.id}>{m.montageCode} · {m.id}</option>)}</select></label><button disabled={!ready||!mixId}>Iniciar montaje simulado</button><p className="notice">El servidor revalida lotes, vigencia y versión al iniciar.</p></form>}
+ </section>
+ <div className="columns"><section className="card queue"><h3>Mis tareas · {roles[p.user.role]||p.user.role}</h3><label>Estado de tarea<select value={filter} onChange={e=>setFilter(e.target.value)}><option value="ALL">Todos</option>{['OPEN','ACKNOWLEDGED','CLOSED'].map(s=><option key={s} value={s}>{states[s]}</option>)}</select></label>
+ {visibleTasks.map(t=><button key={t.id} className="lot" onClick={()=>p.onSelect(t.execution_id)}><b>{t.montage_code}</b><p>{types[t.task_type]} · {states[t.status]}</p><small>{t.id}</small></button>)}{!visibleTasks.length&&<p>{tasks.length?'Sin tareas para este filtro.':'Sin tareas para esta área.'}</p>}
+ <h3>Ejecuciones</h3>{list.map(e=><button key={e.id} className={'lot '+(p.selected===e.id?'selected':'')} onClick={()=>p.onSelect(e.id)}><b>{e.montage_code}</b><p>{states[e.status]}</p></button>)}</section>
+ <section className="card detail">{!detail?<p>Selecciona una ejecución.</p>:<><h3>Montaje simulado · {detail.montage_code}</h3><p className={'badge '+detail.status}>{states[detail.status]}</p><p>{detail.id} · Versión {detail.version}</p><p>Inicio: {detail.started_by} · {new Date(detail.started_at).toLocaleString('es-CO')}</p>
+ {detail.suspension_reason&&<p role="status" className="notice">Suspensión: {detail.suspension_reason}. Cerrar la NC o levantar el bloqueo no reanuda este montaje.</p>}
+ {selectedMix&&!selectedMix.usable&&detail.status==='IN_PROGRESS'&&<p className="error">Revisión requerida: autorización no utilizable. No se permite completar el montaje; documenta la intervención o cancelación.</p>}
+ <button className="link" onClick={()=>p.onMix(detail.mix_request_id)}>Ver mezcla vinculada</button>{detail.disposition&&<p>Disposición: {detail.disposition} · {detail.ended_by}</p>}
+ <h4>Coordinación entre áreas</h4>{detail.tasks?.map(t=><article className="opinion" key={t.id}><b>{roles[t.target_role]} · {types[t.task_type]} · {states[t.status]}</b><p>{t.reason}</p><p>Evidencia inicial: {t.evidence}</p><small>Tarea {t.id} · Evento {t.source_event_id}{t.nc_id&&' · NC '+t.nc_id}</small><p><button className="link" onClick={()=>p.onLot(t.lot_id)}>Ver lote y expediente NC</button></p>{t.acknowledged_by&&<p>Acuse: {t.acknowledged_by} · {t.ack_evidence}</p>}{t.closed_by&&<p>Acción completada: {t.closed_by} · {t.close_evidence}</p>}
+ {t.target_role===p.user.role&&t.status==='OPEN'&&<button disabled={!ready} onClick={()=>command('/tasks/'+t.id+'/acknowledge',t.version)}>Acusar tarea {roles[t.target_role]}</button>}
+ {t.target_role===p.user.role&&t.status==='ACKNOWLEDGED'&&t.acknowledged_by===p.user.username&&<button disabled={!ready} onClick={()=>command('/tasks/'+t.id+'/complete',t.version)}>Completar tarea {roles[t.target_role]}</button>}</article>)}
+ {!detail.tasks?.length&&<p>Sin incidencias de contención registradas.</p>}
+ {p.user.role==='PRODUCTION_APPROVER'&&['IN_PROGRESS','SUSPENDED'].includes(detail.status)&&<div className="actions"><button disabled={!ready||detail.tasks?.some(t=>t.status!=='CLOSED')||(detail.status==='IN_PROGRESS'&&!selectedMix?.usable)} onClick={()=>command('/executions/'+detail.id+'/complete',detail.version)}>Finalizar con disposición</button><button className="secondary" disabled={!ready||detail.tasks?.some(t=>t.status!=='CLOSED')} onClick={()=>command('/executions/'+detail.id+'/cancel',detail.version)}>Cancelar con disposición</button></div>}
+ <h4>Historial de ejecución y tareas</h4>{events.map(e=><article className="opinion" key={e.id}><b>{eventNames[e.event_type]||e.event_type} · {e.actor} · {roles[e.role]||e.role}</b><p>{e.reason}</p><p>Evidencia: {e.evidence}</p><small>{new Date(e.occurred_at).toLocaleString('es-CO')} · Correlación {e.correlation_id}{e.nc_id&&' · NC '+e.nc_id}</small></article>)}</>}
+ </section></div></section>;
+}

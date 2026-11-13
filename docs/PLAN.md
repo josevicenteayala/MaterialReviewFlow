@@ -48,7 +48,7 @@ El [plan técnico de Sprint 2](SPRINT-2.md) reemplaza únicamente el supuesto de
 - Dominio/API: commit `d50e965`; V3, NC y bloqueos identificados. Primera verificación local: 17 pruebas de backend aprobadas sobre PostgreSQL aislado; la entrega de UI agrega una prueba unitaria adicional y requiere nueva verificación conjunta.
 - Interfaz y verificación final: expediente, dictámenes, disposición y reintentos con clave/cuerpo congelados por identidad. Verificación remota ejecutada: 18 pruebas backend y 8 escenarios de navegador aprobados con la aplicación Docker Compose. Los enlaces por SHA y limitaciones se registran en [SPRINT-2-VERIFICATION.md](SPRINT-2-VERIFICATION.md).
 
-No se repiten retenciones ni reinspecciones básicas. Se amplía el bloqueo posterior sobre inventario sin borrar la liberación histórica. El rechazo cambia el estado técnico actual a REJECTED y conserva todos los eventos anteriores. Continúan pendientes sublotes, devolución/baja física, evidencia binaria, mezclas y contención de montajes.
+No se repiten retenciones ni reinspecciones básicas. Se amplía el bloqueo posterior sobre inventario sin borrar la liberación histórica. El rechazo cambia el estado técnico actual a REJECTED y conserva todos los eventos anteriores. Al cierre de Sprint 2 quedaban pendientes sublotes, devolución/baja física, evidencia binaria, mezclas y contención de montajes. Mezclas se entregó en Sprint 3 y contención simulada se aborda en Sprint 4 P0.
 
 ## Sprint 3 — mezclas por montaje
 
@@ -62,3 +62,16 @@ Implementación guiada por [PROCO_SPRINT3_PLAN.md](PROCO_SPRINT3_PLAN.md) y cont
 Entregas: diseño 7187547; solicitud/conceptos 4dcb2f5; revocación/concurrencia 2fd52d5; interfaz, regresión multiactor y documentación en la entrega de cierre. Resultados observados y alcance de pruebas en [SPRINT-3-VERIFICATION.md](SPRINT-3-VERIFICATION.md). Se prepara un PR de codex/sprint-3-mixing sin merge automático.
 
 Siguen pendientes autoridades operativas definitivas, tolerancias reales, trazabilidad por cono/caja/set/máquina, sublotes, adjuntos binarios, reserva/consumo, montaje físico y ERP. Las reglas nuevas son hipótesis de simulación; no alteran el procedimiento aprobado.
+
+
+## Sprint 3 integrado y Sprint 4 P0
+
+Sprint 3 se integró en main mediante PR #2 (`d10a84f086220d12a5da394ee0a1f686a8ee4d85`); CI del merge aprobada. Solicitudes, conceptos, autorización y revocación ya son base existente y no se reimplementan.
+
+Sprint 4 se desarrolla en `codex/sprint-4-containment` desde ese main. [Plan canónico](SPRINT-4-PLAN.md), [diseño y decisiones previas](SPRINT-4-DESIGN.md), [verificación observada](SPRINT-4-VERIFICATION.md).
+
+Entregas P0: diseño previo; V5 y ejecución segura; suspensión/tareas atómicas con NC y bloqueos; interfaz multiactor y reintentos; regresión de Sprints 1–3 y S09 con montaje iniciado. S4-01/02/03/04/08. Se incluye bandeja mínima para operar P0, sin afirmar entrega de OLA, métricas o exportaciones P1/P2.
+
+Reglas provisionales: una ejecución por autorización y una IN_PROGRESS por código; SUSPENDED nunca reanuda; cierre/cancelación por Producción después de tareas CLOSED; cada área confirma con identidad/evidencia propia. Caducidad bloquea inicio/completar y deja revisión requerida, sin suspensión automática temporal. Montaje COMPLETED recibe alerta retrospectiva sin reescritura. Abastecimiento solo coordina rechazo ficticio. Sin consumos, reservas ni integraciones.
+
+El alcance completo original S01–S10 no se amplía silenciosamente: las tolerancias comerciales S03, granularidad física, anexos binarios y política productiva siguen pendientes. Las pruebas documentan exactamente los supuestos ejercitados.

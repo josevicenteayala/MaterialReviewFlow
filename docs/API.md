@@ -1,4 +1,4 @@
-# Contrato HTTP del simulador PROCO Sprints 1 a 3
+# Contrato HTTP del simulador PROCO Sprints 1 a 4
 
 Autenticación HTTP Basic. Todas las rutas requieren identidad; datos sintéticos. GET no cambia estado. Los comandos de material y NC devuelven HTTP 200 con el lote actual; los de mezcla devuelven su propio expediente. `Idempotency-Key` UUID y `version` entero ≥ 0 obligatorios en todos los comandos. `reason` y `evidence` no vacíos, máximo 2000 caracteres. Errores: 400 formato, 401 autenticación, 403 autorización, 404 recurso, 409 versión/estado/clave incompatible, 422 regla incumplida, cuerpo `{status,message}` para errores de negocio.
 
@@ -142,3 +142,38 @@ Abrir NC por Almacén, Calidad, Laboratorio, Producción, GEO o Tintorería util
 Orden común de locks: clave idempotente → lotes ordenados por UUID → solicitudes ordenadas por UUID. NC mantiene su lote y solo adquiere después solicitudes; nunca toma otros lotes. La aprobación vuelve a comprobar material y conceptos después de adquirir todos sus locks. Los triggers diferidos impiden confirmar AUTHORIZED con lotes bloqueados, rechazados, de versión distinta o cantidades insuficientes. Si falla la revocación o su auditoría, se revierte también la NC/hold/lote y su registro de comando.
 
 V4 es aditiva: tablas nuevas y columna mix_id en command_result, con XOR lote/mezcla. Los comandos antiguos conservan lot_id y fingerprint. No se reescriben V1–V3 ni decisiones anteriores. Auditoría de mezclas y conceptos son append-only; ítems/montaje quedan sellados e inmutables.
+
+
+## Sprint 4 P0 — ejecuciones y tareas (SIM-4)
+
+V5 aditiva. Respuestas de este módulo usan nombres de columnas `snake_case`, UUID en `id` y número `version`; lot/mix conservan sus contratos previos. Todas las consultas requieren autenticación. Los comandos usan el mismo bloqueo actor+Idempotency-Key, huella, replay y auditoría; una clave de lote/mezcla no se puede reutilizar para ejecución/tarea.
+
+| Método / ruta | Autoridad / resultado |
+|---|---|
+| GET `/api/executions` | Autenticado; bandeja compartida con conteos agregados de tareas |
+| GET `/api/executions/{id}` | Autenticado; ejecución y coordinación completa (`tasks`) |
+| GET `/api/executions/{id}/timeline` | Autenticado; eventos append-only de ejecución/tareas |
+| POST `/api/mix-requests/{id}/executions` | PRODUCTION_REQUESTER; inicio revalidado en transacción |
+| POST `/api/executions/{id}/complete` | PRODUCTION_APPROVER independiente; disposición documentada |
+| POST `/api/executions/{id}/cancel` | PRODUCTION_APPROVER independiente; cancelación terminal |
+| GET `/api/tasks` | Solo tareas del rol autenticado; sin rol controlado por cliente |
+| POST `/api/tasks/{id}/acknowledge` | Rol destinatario; OPEN → ACKNOWLEDGED, asigna identidad |
+| POST `/api/tasks/{id}/complete` | Mismo usuario que acusó; ACKNOWLEDGED → CLOSED |
+
+Ejemplo de inicio (`version` es versión de mezcla; resto de comandos usa versión del objetivo):
+
+```json
+{"version":4,"montageCode":"M-SIM-100","reason":"Inicio simulado autorizado","evidence":"EV-INICIO"}
+```
+
+Respuesta abreviada: `{"id":"uuid","mix_request_id":"uuid","montage_code":"M-SIM-100","status":"IN_PROGRESS","version":0,"started_by":"tejeduria","tasks":[]}`. Para acuse/cierre: `{"version":0,"reason":"Acción simulada","evidence":"EV-AREA"}`. Todas las mutaciones requieren motivo y evidencia no vacíos (máx. 2000 caracteres), Idempotency-Key UUID y versión no negativa. Replay retorna estado actual del mismo objetivo, sin repetir eventos; la UI conserva exactamente ruta/cuerpo/clave tras respuesta incierta.
+
+POST start exige montaje exacto, AUTHORIZED, vigencia, conceptos/regla vigentes, lotes RELEASED/AVAILABLE sin holds y versiones coincidentes. Unicidad por autorización y código activo; no reserva ni consume kg. El GET de autorización es informativo.
+
+NC/hold revoca mezcla, suspende IN_PROGRESS y crea tareas por área en la misma transacción material. Una nueva causa sobre SUSPENDED crea su propio conjunto; no reactiva. Correlación por evento+ejecución+tipo+área evita duplicados. `nc_id` puede ser null para holds sin NC, y se transmite explícitamente cuando existe. `source_event_id` es la correlación del comando causante. Rechazo crea tarea PROCUREMENT incluso sobre mezcla ya revocada. COMPLETED conserva estado y genera RETROSPECTIVE_ALERT/tareas RETROSPECTIVE_REVIEW; CANCELLED no se suspende.
+
+Completar/cancelar requiere tareas CLOSED. Producción es distinta del iniciador y de la revisión de Calidad. SUSPENDED admite disposición final, jamás reanudación. Completar IN_PROGRESS revalida autorización; si caducó devuelve 422 y registra REVIEW_REQUIRED tras rollback. Cancelación documentada sigue disponible. Sin vigilancia temporal externa ni aprobación automática.
+
+Auditoría de tarea conserva motivo/evidencia de creación, acuse y cierre en columnas separadas y eventos. Campos de contexto: execution_id/task_id/lot_id/mix_id/nc_id, actor/rol/UTC, transición, correlación y payload SIM-4. Definición/terminalidad de ejecución, tareas cerradas y eventos están protegidos en PostgreSQL.
+
+Orden de locks: clave → lotes ordenados → mezclas ordenadas → ejecución → tareas. NC posee su lote y nunca adquiere otros; falla en tarea/evento revierte NC, hold, lote, mezcla, ejecución, tareas y command_result. Bandejas usan SQL agregado/batched. Errores: 400 transporte, 401 autenticación, 403 rol/asignación, 404 objetivo/acción, 409 versión/estado/unicidad/clave, 422 elegibilidad/evidencia de dominio. Sin OLA, dashboard, exportación, ERP ni notificaciones externas.
