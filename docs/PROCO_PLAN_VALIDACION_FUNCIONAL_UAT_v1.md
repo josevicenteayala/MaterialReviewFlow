@@ -30,15 +30,14 @@ Validar con representantes de **Almacén, Calidad, Laboratorio Hilos, Tejeduría
 ### Preparación antes del taller
 
 - Tomar SHA exacto de `main`, confirmar CI verde de ese mismo SHA, versiones V1–V7, puertos e integridad de los volúmenes.
-- Crear **ambiente aislado** para UAT (datos sintéticos) y conservar la demo de desarrollo original. Ejemplo desde la raíz del proyecto, **solo si los puertos están libres**:
+- Crear **ambiente aislado** para UAT (datos sintéticos) y conservar la demo de desarrollo original. Identificar el proyecto por el SHA probado. El entorno `proco-uat-91688b6` ya está preparado: para retomarlo, seguir el comando `start` de [UAT-READINESS.md §3](UAT-READINESS.md#3-entorno-preparado-y-aislamiento). El siguiente ejemplo documenta su creación original desde una copia limpia del repositorio; usarlo **solo si el proyecto/volumen todavía no existen y los puertos están libres**:
 
   ```bash
-  git switch main
-  git pull --ff-only
-  DB_PORT=55442 BACKEND_PORT=18097 FRONTEND_PORT=18098 docker compose -p proco-uat up -d --build
+  git switch --detach 91688b6d6d2f7b547802d708c9429b2ebc6cc02f
+  DB_PORT=55442 BACKEND_PORT=18097 FRONTEND_PORT=18098 docker compose -p proco-uat-91688b6 up -d --build
   ```
 
-  Abrir http://localhost:18098. El nombre `proco-uat` mantiene un volumen distinto de los proyectos Compose anteriores. No ejecutar `docker compose down -v` ni borrar volúmenes existentes. Si se repiten escenarios que consumen saldo de OC, usar **un entorno UAT nuevo** o identificadores/lotes y saldo comprobados; no borrar datos para simular reversibilidad.
+  Abrir http://localhost:18098. El proyecto `proco-uat-91688b6` usa el volumen `proco-uat-91688b6_proco-data`, distinto de las demos anteriores. **Para otro taller o repetición desde cero sobre el mismo SHA**, elegir un nombre aún no utilizado, por ejemplo `proco-uat-91688b6-taller-02`, y puertos libres; comprobar antes que tampoco exista su volumen. Para otro commit, cambiar también el SHA del nombre y fijar ese commit. El nombre con SHA no evita reutilización entre dos talleres del mismo commit. `start` conserva los datos del entorno existente; `up` sobre el mismo nombre también puede reutilizarlos, no crea una base limpia. No ejecutar `docker compose down -v` ni borrar volúmenes existentes. Si se repiten escenarios que consumen saldo de OC, usar **un entorno UAT nuevo** o identificadores/lotes y saldo comprobados; no borrar datos para simular reversibilidad. Un proyecto nuevo solo incorpora las cinco semillas estándar: los fixtures preparados adicionales se crean por UI/API según el reporte.
 - Validar los usuarios sintéticos de `SimulationData`: `almacen`, `calidad`, `calidad2`, `tecnico`, `aprobador`, `tejeduria`, `produccion`, `geo`, `tintoreria`, `abastecimiento`, `abastecimiento2`. Una persona puede representar varias áreas cambiando de usuario, pero se deben mantener las identidades distintas donde aplique segregación.
 - Confirmar que la aplicación es accesible solo en `localhost` (Docker Compose expone servicios en `127.0.0.1`). Para varios participantes, realizar una demostración facilitada o diseñar **aparte** una configuración segura multiusuario; no publicar puertos directamente en la LAN.
 - Preparar evidencias con formato `UAT-<ID>-<fecha>-<rol>`, registros de lotes/mezclas/NC/casos y capturas anonimizadas/sintéticas. No incorporar información real de proveedores, trabajadores o producción.

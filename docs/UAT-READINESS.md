@@ -1,6 +1,6 @@
 # Preparación técnica para UAT — PROCO SIM-0.2
 
-Fecha: 13-11-2026, America/Bogota. Base exacta revisada: **main `91688b6d6d2f7b547802d708c9429b2ebc6cc02f`**, PR #5 de Sprint 6 integrado. Rama de este reporte: `codex/uat-readiness`. Guía: [PROCO_PLAN_VALIDACION_FUNCIONAL_UAT_v1.md](PROCO_PLAN_VALIDACION_FUNCIONAL_UAT_v1.md), conservada sin modificar.
+Fecha: 13-11-2026, America/Bogota. Base exacta revisada: **main `91688b6d6d2f7b547802d708c9429b2ebc6cc02f`**, PR #5 de Sprint 6 integrado. Rama de este reporte: `codex/uat-readiness`. Guía: [PROCO_PLAN_VALIDACION_FUNCIONAL_UAT_v1.md](PROCO_PLAN_VALIDACION_FUNCIONAL_UAT_v1.md), conservada como guía; su instrucción de entorno se armonizó en la revisión del PR #6, sin cambios de criterios funcionales.
 
 **Conclusión de preparación:** se dispone de entorno local aislado, identidades, saldo y recorridos para facilitar S01–S10 bajo los límites del simulador. No se ha realizado UAT con responsables de PROCO, no existe acta de aceptación y no se declara aprobado el procedimiento ni habilitado el uso operativo. Las transiciones usadas para preparar fixtures son evidencia técnica, no resultados de taller.
 
@@ -71,7 +71,7 @@ Si el primer curl falla, esperar a que PostgreSQL/backend terminen de iniciar y 
 DB_PORT=55442 BACKEND_PORT=18097 FRONTEND_PORT=18098 docker compose -p proco-uat-91688b6 stop
 ```
 
-No ejecutar Maven/Playwright completos contra esta base: sus fixtures cambiarían la preparación y consumirían saldo. La CI ya usó sus propias bases. Para otro taller desde cero, crear **otro nombre de proyecto/volumen y puertos libres**, fijar este SHA y crear nuevos datos desde la UI/API; no borrar ni restaurar silenciosamente el volumen preparado. Un clon nuevo con Compose solo trae las cinco semillas estándar, no los 14 fixtures locales que se detallan abajo.
+No ejecutar Maven/Playwright completos contra esta base: sus fixtures cambiarían la preparación y consumirían saldo. La CI ya usó sus propias bases. Para otro taller desde cero, crear **otro nombre de proyecto/volumen aún no utilizado y puertos libres**, por ejemplo `proco-uat-91688b6-taller-02`, comprobar que proyecto y volumen no existan, fijar este SHA y crear nuevos datos desde la UI/API; no borrar ni restaurar silenciosamente el volumen preparado. El SHA distingue commits, pero cada taller desde cero sobre un mismo SHA necesita también un sufijo nuevo; `up` con el nombre existente reutiliza sus datos. Un clon nuevo con Compose solo trae las cinco semillas estándar, no los 14 fixtures locales que se detallan abajo.
 
 ## 4. Usuarios, datos y estado inicial
 
@@ -201,3 +201,9 @@ El registro temporal de preparación `/tmp/proco-uat-fixtures.json` conserva cue
 Las tablas de tareas/diferencias/casos todavía vacías solo prueban la conservación de su estado inicial local. La evidencia de persistencia con datos S03/S10 y tareas no vacías procede de la CI del SHA exacto, indicada en §1. No se falsificaron casos finalizados para llenar el dashboard.
 
 Al finalizar la preparación se detiene el proyecto UAT conservando su volumen, de acuerdo con la preferencia previa de mantener servidores apagados hasta necesitarlos. Iniciarlo con el comando §3 antes del taller y verificar vigencias. Los proyectos anteriores permanecen detenidos.
+
+## Revisión del PR #6 — nombres de entorno coherentes
+
+Se armonizó el ejemplo operativo de la guía con `proco-uat-91688b6`, fijando el SHA probado y distinguiendo `start` del entorno preparado de la creación de un proyecto nuevo. Para repetir desde cero sobre ese mismo SHA se exige un sufijo aún no utilizado (ejemplo `-taller-02`) y puertos libres. No se cambiaron criterios funcionales de la guía.
+
+Verificación ejecutada: `docker compose config --format json` para `proco-uat-91688b6` (55442/18097/18098) y `proco-uat-91688b6-taller-02` (55443/18099/18100). Los nombres de volumen resultantes son distintos (`proco-uat-91688b6_proco-data` y `proco-uat-91688b6-taller-02_proco-data`), y todos los puertos se publican en 127.0.0.1. Enlaces locales y `git diff --check` correctos. Solo se resolvió la configuración: no se inició el segundo entorno ni se crearon volúmenes o datos para esta comprobación.
