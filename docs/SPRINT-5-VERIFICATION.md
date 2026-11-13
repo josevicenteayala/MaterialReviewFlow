@@ -74,3 +74,9 @@ Un selector exacto del área OLA del test no encontraba su label con opciones; s
 ## Límites
 
 Todo es DEMO y local. Sin OLA oficial, calendario laboral, worker, emails, ERP, máquinas, consumo/reserva ni notificaciones fuera de la UI. No se afirma cobertura completa S03 comercial o devolución física S10; se separan para una entrega siguiente. CSV es una página acotada, no exportación implícita de toda la cohorte. El JSON acota secciones y no sustituye documentos firmados. Sin reanudación ni reinterpretación de históricos.
+
+## Ajuste de revisión — contrato público de tareas
+
+Aplica la observación del PR #4: `OlaPolicy.project` copiaba los auxiliares SQL `execution_outcome_at` y `state_at` al payload público. Ahora consume el primero para `execution_status` y retira ambos de la copia de salida, sin modificar el mapa de origen ni el filtrado SQL. `status`, `execution_status` y la paginación a asOf conservan sus valores.
+
+La prueba nueva reprodujo la fuga con la versión anterior. Después del ajuste, `TEST_DB_URL=jdbc:postgresql://localhost:55438/proco_sprint5_final JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home mvn -f backend/pom.xml -Dmaven.repo.local=/tmp/proco-m2 -Dtest=OlaPolicyTest,MonitoringIntegrationTest test -q` aprobó **13 pruebas, cero fallos/errores/omitidas**. Incluye contrato público, fuente inmutable y respuesta real del endpoint cuando se cierra el montaje entre páginas. `git diff --check` correcto. La nueva prueba incrementa la suite completa a64; sus resultados por SHA se enlazan en el PR y no se confunden con las63 de la entrega inicial.

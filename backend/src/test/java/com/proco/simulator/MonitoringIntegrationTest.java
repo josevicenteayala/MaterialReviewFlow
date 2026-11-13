@@ -160,6 +160,6 @@ class MonitoringIntegrationTest {
  @Test void paginatedExecutionFilterKeepsItsAsOfWhenParentIncidentCloses()throws Exception{
   UUID a=lot("OC-H-001"),m=approved(a,lot("OC-H-001")),e=id(start(m));nc(a);var at=clock.instant();String query=params(m)+"&executionStatus=SUSPENDED&limit=2&asOf="+at;
   var first=good("geo","/monitoring/tasks"+query,null);assertEquals(4,first.get("total").asInt());clock.value.set(at.plusSeconds(60));closeTasks(e);good("produccion","/executions/"+e+"/close-incident",data(1,Map.of()));
-  var second=good("geo","/monitoring/tasks"+query+"&cursor="+first.get("nextCursor").asText(),null);assertEquals(4,second.get("total").asInt());assertEquals(2,second.get("items").size());for(var task:second.get("items")){assertEquals("OPEN",task.get("status").asText());assertEquals(0,task.get("version").asInt());assertEquals("SUSPENDED",task.get("execution_status").asText());}
+  var second=good("geo","/monitoring/tasks"+query+"&cursor="+first.get("nextCursor").asText(),null);assertEquals(4,second.get("total").asInt());assertEquals(2,second.get("items").size());for(var task:second.get("items")){assertFalse(task.has("execution_outcome_at"));assertFalse(task.has("state_at"));assertEquals("OPEN",task.get("status").asText());assertEquals(0,task.get("version").asInt());assertEquals("SUSPENDED",task.get("execution_status").asText());}
  }
 }
