@@ -59,7 +59,7 @@ Implementación guiada por [PROCO_SPRINT3_PLAN.md](PROCO_SPRINT3_PLAN.md) y cont
 - US-08: autorización o denegación por Producción independiente, revalidación transaccional, sin reserva/consumo ni cambios de material.
 - US-09: NC/bloqueo/rechazo revocan autorizaciones afectadas en la misma transacción. Levantar NC no reactiva una autorización anterior.
 
-Entregas: diseño 7187547; solicitud/conceptos 4dcb2f5; revocación/concurrencia 2fd52d5; interfaz, regresión multiactor y documentación en la entrega de cierre. Resultados observados y alcance de pruebas en [SPRINT-3-VERIFICATION.md](SPRINT-3-VERIFICATION.md). Se prepara un PR de codex/sprint-3-mixing sin merge automático.
+Entregas: diseño 7187547; solicitud/conceptos 4dcb2f5; revocación/concurrencia 2fd52d5; interfaz, regresión multiactor y documentación en la entrega de cierre. Resultados observados y alcance de pruebas en [SPRINT-3-VERIFICATION.md](SPRINT-3-VERIFICATION.md). Sprint 3 se integró mediante PR #2; su registro de verificación conserva la evidencia de aquella entrega.
 
 Siguen pendientes autoridades operativas definitivas, tolerancias reales, trazabilidad por cono/caja/set/máquina, sublotes, adjuntos binarios, reserva/consumo, montaje físico y ERP. Las reglas nuevas son hipótesis de simulación; no alteran el procedimiento aprobado.
 
@@ -68,10 +68,23 @@ Siguen pendientes autoridades operativas definitivas, tolerancias reales, trazab
 
 Sprint 3 se integró en main mediante PR #2 (`d10a84f086220d12a5da394ee0a1f686a8ee4d85`); CI del merge aprobada. Solicitudes, conceptos, autorización y revocación ya son base existente y no se reimplementan.
 
-Sprint 4 se desarrolla en `codex/sprint-4-containment` desde ese main. [Plan canónico](SPRINT-4-PLAN.md), [diseño y decisiones previas](SPRINT-4-DESIGN.md), [verificación observada](SPRINT-4-VERIFICATION.md).
+Sprint 4 se integró mediante PR #3 en main `71e8a3b418b838bf625ae1ad1d3ee1c136e74c88`. [Plan canónico](SPRINT-4-PLAN.md), [diseño y decisiones previas](SPRINT-4-DESIGN.md), [verificación observada](SPRINT-4-VERIFICATION.md).
 
 Entregas P0: diseño previo; V5 y ejecución segura; suspensión/tareas atómicas con NC y bloqueos; interfaz multiactor y reintentos; regresión de Sprints 1–3 y S09 con montaje iniciado. S4-01/02/03/04/08. Se incluye bandeja mínima para operar P0, sin afirmar entrega de OLA, métricas o exportaciones P1/P2.
 
 Reglas provisionales: una ejecución por autorización y una IN_PROGRESS por código; SUSPENDED nunca reanuda; cierre/cancelación por Producción después de tareas CLOSED; cada área confirma con identidad/evidencia propia. Caducidad bloquea inicio/completar y deja revisión requerida, sin suspensión automática temporal. Montaje COMPLETED recibe alerta retrospectiva sin reescritura. Abastecimiento solo coordina rechazo ficticio. Sin consumos, reservas ni integraciones.
 
 El alcance completo original S01–S10 no se amplía silenciosamente: las tolerancias comerciales S03, granularidad física, anexos binarios y política productiva siguen pendientes. Las pruebas documentan exactamente los supuestos ejercitados.
+
+
+## Sprint 5 — seguimiento operativo y cierre verificable
+
+Base main 71e8a3b (Sprints 1–4 integrados, CI del merge aprobada). [Plan](SPRINT-5-PLAN.md), [decisiones previas](SPRINT-5-DESIGN.md) y [verificación](SPRINT-5-VERIFICATION.md). Rama `codex/sprint-5-monitoring`; PR sin merge automático.
+
+- P0-A: V6 compatible, COMPLETED solo normal desde IN_PROGRESS; close-incident da CLOSED_WITH_INCIDENT desde SUSPENDED. Históricos V5 intactos; COMPLETED con suspensión se proyecta LEGACY_INCIDENT_CLOSURE. Esto sustituye únicamente la semántica de cierre de Sprint 4 para comandos nuevos.
+- P0-B: OLA DEMO inmutables/versionados por área/tipo, snapshots solo en tareas nuevas, UTC/minutos corridos, alertas calculadas sin efectos automáticos. GEO crea nuevas versiones con autorización, versión, clave y auditoría.
+- P0-C: dashboard agregado, conteos sin duplicar entidades, n/media/mediana de acuse y cierre observados, filtros acotados y keyset/asOf para tareas.
+- P1 posterior a P0 verificado: JSON de expediente acotado y CSV paginado protegido contra fórmulas/controles; solo lectura autenticada.
+- Cierre de entrega: regresión preserva los casos previos (expectativas de cierre suspendido ajustadas al nuevo contrato), migración V5→V6, concurrencia, navegador, Compose aislado y comparación de reglas/snapshots tras reinicio.
+
+S03 y S10 comerciales siguen parciales: propuesta de Sprint 6 para diferencia de OC y disposición comercial ficticia; no se declara cumplimiento industrial ni devolución física. OLA oficiales, ERP, máquinas, reserva/consumo, firmas y notificaciones externas permanecen fuera del alcance.

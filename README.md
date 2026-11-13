@@ -1,15 +1,15 @@
 # Simulador PROCO SIM-0.2
 
-Sprints 1–3 integrados en `main`; Sprint 4 P0 en revisión: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, rechazo definitivo, autorización de mezclas y ejecución simulada con contención por áreas. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
+Sprints 1–4 integrados en `main`; Sprint 5 en revisión: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, rechazo definitivo, autorización de mezclas y ejecución simulada con contención por áreas. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
 
-Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). Sprints 1–3 están en main (Sprint 3: merge PR #2, `d10a84f`). Sprint 4 se prepara en `codex/sprint-4-containment`, sin modificar main ni hacer merge automático. El alcance técnico de mezclas y sus riesgos están en [docs/SPRINT-3-DESIGN.md](docs/SPRINT-3-DESIGN.md). El montaje físico, sublotes, devolución física, reserva/consumo, notificaciones externas y OLA siguen pendientes; el acuse de tareas de contención ya es persistente.
+Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). Sprints 1–4 están en main (Sprint 4: merge PR #3, `71e8a3b`). Sprint 5 se prepara en `codex/sprint-5-monitoring`, sin modificar main ni hacer merge automático. El alcance técnico de mezclas y sus riesgos están en [docs/SPRINT-3-DESIGN.md](docs/SPRINT-3-DESIGN.md). El montaje físico, sublotes, devolución física, reserva/consumo, notificaciones externas y OLA operativos aprobados siguen pendientes; los plazos DEMO y alertas internas están implementados; el acuse de tareas de contención ya es persistente.
 
 ## Repositorio y continuidad
 
-Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene Sprints 1–3. Sprint 4 se propone en un PR desde `codex/sprint-4-containment`, sin merge automático. Su especificación es [docs/PROCO_SPRINT3_PLAN.md](docs/PROCO_SPRINT3_PLAN.md). El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
+Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene Sprints 1–4. Sprint 5 se propone en un PR desde `codex/sprint-5-monitoring`, sin merge automático. Su especificación es [docs/SPRINT-5-PLAN.md](docs/SPRINT-5-PLAN.md). El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
 
 ```sh
-git clone --branch codex/sprint-4-containment https://github.com/josevicenteayala/MaterialReviewFlow.git
+git clone --branch codex/sprint-5-monitoring https://github.com/josevicenteayala/MaterialReviewFlow.git
 cd MaterialReviewFlow
 docker compose up -d --build
 ```
@@ -73,6 +73,7 @@ Monolito modular con composición desde `workflow`; sin motor BPMN ni servicios 
 | `quality` | Condiciones de inspección/reinspección |
 | `laboratory` | Criterios críticos y segregación de aprobación |
 | `inventory` | Bloqueos identificados y condiciones de disponibilidad |
+| `monitoring` | Reglas OLA DEMO, alertas derivadas, dashboard y exportación de evidencia |
 | `execution` | Inicio/finalización de montajes simulados, suspensión y tareas por área |
 | `mixing` | Solicitud/conceptos/decisiones, elegibilidad y revocación transaccional por montaje |
 | `nonconformity` | Expediente, dictámenes versionados, responsables, levantamiento y rechazo |
@@ -115,7 +116,7 @@ npm --prefix frontend ci
 npm --prefix frontend run build
 ```
 
-Crear `proco_test` solo una vez. La suite arranca un servidor HTTP real en 18080 y usa PostgreSQL real en `proco_test`, separado de la demo `proco`. Puede cambiarse la URL con `TEST_DB_URL`; usuario/contraseña con `DB_USER`/`DB_PASSWORD`. Los tests insertan lotes únicos y conservan auditoría, sin borrar datos. Si se ejecutan miles de veces sobre la misma base, usar una base de prueba nueva por el saldo finito de OC.
+Crear `proco_test` solo una vez. La suite arranca servidores HTTP reales en 18080, 18180, 18280 y 18380 y usa PostgreSQL real en `proco_test`, separado de la demo `proco`. Puede cambiarse la URL con `TEST_DB_URL`; usuario/contraseña con `DB_USER`/`DB_PASSWORD`. Los tests insertan lotes únicos y conservan auditoría, sin borrar datos. Si se ejecutan miles de veces sobre la misma base, usar una base de prueba nueva por el saldo finito de OC.
 
 Pruebas: política de límites y segregación; S01 por API; retención/reinspección/reensayo; roles, ensayo faltante y disponibilidad anticipada; concurrencia 200/409; idempotencia; validación/autenticación; trigger de inmutabilidad.
 
@@ -133,7 +134,7 @@ Para desarrollo interactivo: `mvn -f backend/pom.xml spring-boot:run` y `npm --p
 
 ## Límites de esta entrega
 
-Simulación local sin SSO, HTTPS, recuperación de contraseña, gestión de usuarios, aislamiento por organización ni adjuntos binarios. Todos los usuarios autorizados pueden consultar todos los lotes ficticios. La evidencia es una referencia textual auditable, no un archivo firmado. La bandeja se calcula desde el estado persistido; las tareas de contención tienen acuse/cierre, sin plazos OLA automáticos. No se declara conformidad normativa ni validación de los diez escenarios completos. Ver [plan](docs/PLAN.md) y [registro de verificación](docs/VERIFICATION.md).
+Simulación local sin SSO, HTTPS, recuperación de contraseña, gestión de usuarios, aislamiento por organización ni adjuntos binarios. Todos los usuarios autorizados pueden consultar todos los lotes ficticios. La evidencia es una referencia textual auditable, no un archivo firmado. La bandeja se calcula desde el estado persistido; las tareas de contención tienen acuse/cierre, sin decisiones automáticas por vencimiento. No se declara conformidad normativa ni validación de los diez escenarios completos. Ver [plan](docs/PLAN.md) y [registro de verificación](docs/VERIFICATION.md).
 
 ## Revisar Sprint 2 sin modificar la demo existente
 
@@ -181,7 +182,9 @@ E2E_URL=http://127.0.0.1:18090 npm --prefix frontend run test:e2e
 
 Java local debe ser 21; Chromium se instala según las instrucciones de Playwright anteriores. Las pruebas de upgrade V2→V3 y V3→V4 usan esquemas sintéticos propios y comparan valores previos de material, NC, holds, auditoría e idempotencia. El CI ejecuta toda la suite contra PostgreSQL real y la interfaz contra Docker Compose desechable. No hay montaje físico, reserva, consumo ni integración corporativa en este sprint.
 
-## Sprint 4 P0 — montaje simulado y contención
+## Sprint 4 P0 integrado — montaje simulado y contención
+
+La guía siguiente describe V5; Sprint 5 distingue cierre normal y cierre del incidente según el contrato actualizado al final de este README.
 
 [Especificación](docs/SPRINT-4-PLAN.md), [diseño previo](docs/SPRINT-4-DESIGN.md), [resultados observados](docs/SPRINT-4-VERIFICATION.md). V5 es aditiva y conserva V1–V4. Cuenta ficticia adicional `abastecimiento` (PROCUREMENT), misma contraseña `Simulacion123!`; no puede liberar material ni autorizar mezclas.
 
@@ -212,3 +215,37 @@ E2E_URL=http://127.0.0.1:18092 npm --prefix frontend run test:e2e
 Para detener y conservar datos: `docker compose -p proco-sprint4 stop`; para volver a levantar los mismos contenedores: `docker compose -p proco-sprint4 start`. Esta entrega no implementa OLA, indicadores, exportaciones, inventario real, ERP, máquinas ni notificaciones externas.
 
 Después de ejecutar los E2E de Sprint 4, verificar reinicio y persistencia con `python3 scripts/verify-sprint4-restart.py --project proco-sprint4 --url http://127.0.0.1:18092`. Compara filas completas de diez tablas antes/después y reinicia solo ese proyecto, sin borrar volúmenes.
+
+
+## Sprint 5 — seguimiento, OLA DEMO y cierre inequívoco
+
+[Plan](docs/SPRINT-5-PLAN.md), [diseño previo](docs/SPRINT-5-DESIGN.md), [resultados comprobados](docs/SPRINT-5-VERIFICATION.md). Base main `71e8a3b`, PR #3 integrado. V6 conserva V1–V5 y todas las filas históricas; los OLA de tareas V5 permanecen sin configurar. No ejecutar migraciones ni pruebas en el volumen de otra demo.
+
+```sh
+git switch codex/sprint-5-monitoring
+DB_PORT=55438 BACKEND_PORT=18087 FRONTEND_PORT=18094 docker compose -p proco-sprint5 up -d --build
+```
+
+Abrir http://localhost:18094. Usuarios y contraseña ficticios siguen iguales. No se requiere Java/Node para usar los contenedores.
+
+- Producción normal: `IN_PROGRESS → COMPLETED` mediante **Completar producción simulada**, con autorización aún utilizable. Tras suspensión: **Cerrar incidente con disposición** usa `SUSPENDED → CLOSED_WITH_INCIDENT`. Cancelación permanece disponible. Todas las tareas deben estar CLOSED y se conserva segregación/evidencia. No hay reanudación.
+- Un `COMPLETED` histórico con `suspended_at` conserva sus datos y se muestra como **Cierre heredado tras incidente**. No se cuenta como producción completada normal. Las tareas posteriores de revisión no reabren el montaje; la UI indica revisión pendiente.
+- En **Seguimiento y OLA**, cualquier participante consulta indicadores, alertas internas y tareas filtradas. Fechas en UTC y minutos corridos; nada se aprueba o cierra por vencer.
+- Como `geo`, crear una versión DEMO por área/tipo con motivo y evidencia. La versión esperada evita sobrescribir cambios de otro usuario. Cada tarea nueva captura su regla y objetivos; cambiarla no modifica tareas anteriores. Dejar un objetivo vacío significa NOT_CONFIGURED para ese hito; ambos vacíos deshabilitan plazos futuros.
+- Semillas ficticias: contención 30 min acuse / 240 min cierre, ventana próxima 10; Abastecimiento/rechazo 60/480/10. No existe regla inicial para revisión retrospectiva. Son ejemplos, nunca OLA aprobados de PROCO.
+- Media/mediana en segundos con n separado de acuses y cierres; tareas abiertas no cuentan como cierres. Cero muestras = N/A. Las cohortes usan creación de tarea/mezcla, inicio del montaje y apertura de NC dentro de [from,to), máximo 366 días. Área/montaje/estado de ejecución restringen entidades relacionadas; estado de tarea solo tareas y tiempos. Alertas distinguen tareas e hitos vencidos.
+- Cada descarga CSV corresponde a la página mostrada (25 tareas en UI, API máximo 100); usar Siguiente para las demás. CSV UTF-8 neutraliza fórmulas/controles y conserva fecha, IDs y versión OLA. **Exportar expediente JSON** desde el montaje incluye lotes, NC, dictámenes, bloqueos, mezcla, ejecución, tareas, reglas y eventos; conserva texto original. Rechaza secciones de más de 2000 filas, sin truncar evidencia silenciosamente. Exportar no cambia estado ni agrega decisiones.
+
+Pruebas aisladas (crear la base una vez):
+
+```sh
+docker compose -p proco-sprint5 exec -T db psql -U proco -d postgres -c 'CREATE DATABASE proco_sprint5_test'
+TEST_DB_URL=jdbc:postgresql://localhost:55438/proco_sprint5_test mvn -f backend/pom.xml verify
+npm --prefix frontend run build
+E2E_URL=http://127.0.0.1:18094 npm --prefix frontend run test:e2e
+python3 scripts/verify-sprint4-restart.py --project proco-sprint5 --url http://127.0.0.1:18094
+```
+
+El script conserva compatibilidad con Sprint 4 y añade reglas OLA a la comparación si existe V6; snapshots y plazos están incluidos en las filas completas de tareas. Detener: `docker compose -p proco-sprint5 stop`; reabrir cuando sea necesario: `docker compose -p proco-sprint5 start`. Sin borrar volúmenes.
+
+Siguen fuera de alcance S03 comercial completo, devolución física S10, calendario laboral/OLA oficial, ERP, máquinas, consumo/reserva y notificaciones externas. Alertas derivadas requieren consultar/actualizar la UI; no hay worker, email ni notificación sin sesión.
