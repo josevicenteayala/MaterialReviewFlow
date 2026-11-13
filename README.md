@@ -1,15 +1,15 @@
 # Simulador PROCO SIM-0.2
 
-Sprint 3 en revisión: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, rechazo definitivo y autorización de mezclas por montaje. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
+Sprints 1–3 integrados en `main`; Sprint 4 P0 en revisión: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, rechazo definitivo, autorización de mezclas y ejecución simulada con contención por áreas. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
 
-Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). Sprints 1 y 2 están en main. Sprint 3 se prepara en `codex/sprint-3-mixing`, sin modificar main ni hacer merge automático. El alcance técnico de mezclas y sus riesgos están en [docs/SPRINT-3-DESIGN.md](docs/SPRINT-3-DESIGN.md). El montaje físico, sublotes, devolución física, reserva/consumo, notificaciones con acuse y OLA siguen pendientes.
+Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). Sprints 1–3 están en main (Sprint 3: merge PR #2, `d10a84f`). Sprint 4 se prepara en `codex/sprint-4-containment`, sin modificar main ni hacer merge automático. El alcance técnico de mezclas y sus riesgos están en [docs/SPRINT-3-DESIGN.md](docs/SPRINT-3-DESIGN.md). El montaje físico, sublotes, devolución física, reserva/consumo, notificaciones externas y OLA siguen pendientes; el acuse de tareas de contención ya es persistente.
 
 ## Repositorio y continuidad
 
-Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene Sprints 1 y 2. Sprint 3 se propone en un PR desde `codex/sprint-3-mixing`, sin merge automático. Su especificación es [docs/PROCO_SPRINT3_PLAN.md](docs/PROCO_SPRINT3_PLAN.md). El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
+Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene Sprints 1–3. Sprint 4 se propone en un PR desde `codex/sprint-4-containment`, sin merge automático. Su especificación es [docs/PROCO_SPRINT3_PLAN.md](docs/PROCO_SPRINT3_PLAN.md). El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
 
 ```sh
-git clone --branch codex/sprint-3-mixing https://github.com/josevicenteayala/MaterialReviewFlow.git
+git clone --branch codex/sprint-4-containment https://github.com/josevicenteayala/MaterialReviewFlow.git
 cd MaterialReviewFlow
 docker compose up -d --build
 ```
@@ -37,8 +37,9 @@ Abrir [http://localhost:8088](http://localhost:8088). La primera construcción d
 | `produccion` | PRODUCTION_APPROVER |
 | `geo` | GEO |
 | `tintoreria` | DYEING |
+| `abastecimiento` | PROCUREMENT (coordinación ficticia de rechazo) |
 
-Contraseña de los nueve: **`Simulacion123!`**. Cuentas ficticias persistidas con BCrypt; credenciales enviadas con HTTP Basic explícito, sin cookies ni almacenamiento local. Al salir se elimina la credencial de la memoria de la interfaz. El selector elige identidad, no concede permisos. API y PostgreSQL solo se publican en loopback.
+Contraseña de los diez: **`Simulacion123!`**. Cuentas ficticias persistidas con BCrypt; credenciales enviadas con HTTP Basic explícito, sin cookies ni almacenamiento local. Al salir se elimina la credencial de la memoria de la interfaz. El selector elige identidad, no concede permisos. API y PostgreSQL solo se publican en loopback.
 
 Se generan dos referencias, dos proveedores/OC y dos lotes iniciales (hilo y elastano), en cuarentena, con eventos auditables. Los comandos semilla tienen claves fijas y se reejecutan idempotentemente al arrancar: no reinician el avance del material.
 
@@ -72,6 +73,7 @@ Monolito modular con composición desde `workflow`; sin motor BPMN ni servicios 
 | `quality` | Condiciones de inspección/reinspección |
 | `laboratory` | Criterios críticos y segregación de aprobación |
 | `inventory` | Bloqueos identificados y condiciones de disponibilidad |
+| `execution` | Inicio/finalización de montajes simulados, suspensión y tareas por área |
 | `mixing` | Solicitud/conceptos/decisiones, elegibilidad y revocación transaccional por montaje |
 | `nonconformity` | Expediente, dictámenes versionados, responsables, levantamiento y rechazo |
 | `workflow` | Comandos, autorización de negocio, transacción, concurrencia y API |
@@ -95,7 +97,7 @@ Contrato detallado y ejemplos en [docs/API.md](docs/API.md). Todas las consultas
 | POST `/api/lots/{id}/test` | LAB_TECH |
 | POST `/api/lots/{id}/release` | LAB_APPROVER |
 | POST `/api/lots/{id}/available` | WAREHOUSE |
-| POST `/api/lots/{id}/nonconformities` | Los cuatro roles de negocio |
+| POST `/api/lots/{id}/nonconformities` | Roles operativos de Sprints 1–3; excluye PROCUREMENT |
 | POST `/api/lots/{id}/nonconformities/{nc}/opinion` | LAB_APPROVER |
 | POST `/api/lots/{id}/nonconformities/{nc}/resolve` o `/reject` | QUALITY responsable independiente |
 
@@ -131,7 +133,7 @@ Para desarrollo interactivo: `mvn -f backend/pom.xml spring-boot:run` y `npm --p
 
 ## Límites de esta entrega
 
-Simulación local sin SSO, HTTPS, recuperación de contraseña, gestión de usuarios, aislamiento por organización ni adjuntos binarios. Todos los usuarios autorizados pueden consultar todos los lotes ficticios. La evidencia es una referencia textual auditable, no un archivo firmado. La bandeja se calcula desde el estado persistido; no tiene vencimientos ni acuses. No se declara conformidad normativa ni validación de los diez escenarios completos. Ver [plan](docs/PLAN.md) y [registro de verificación](docs/VERIFICATION.md).
+Simulación local sin SSO, HTTPS, recuperación de contraseña, gestión de usuarios, aislamiento por organización ni adjuntos binarios. Todos los usuarios autorizados pueden consultar todos los lotes ficticios. La evidencia es una referencia textual auditable, no un archivo firmado. La bandeja se calcula desde el estado persistido; las tareas de contención tienen acuse/cierre, sin plazos OLA automáticos. No se declara conformidad normativa ni validación de los diez escenarios completos. Ver [plan](docs/PLAN.md) y [registro de verificación](docs/VERIFICATION.md).
 
 ## Revisar Sprint 2 sin modificar la demo existente
 
@@ -142,7 +144,7 @@ DB_PORT=55432 BACKEND_PORT=18081 FRONTEND_PORT=18088 docker compose -p proco-spr
 
 Abrir [http://localhost:18088](http://localhost:18088). El proyecto Compose separado usa otro volumen; no ejecutar `down -v` sobre la demo existente. V3 solo añade esquema y restricciones, no reescribe lotes, usuarios ni auditoría; V1/V2 permanecen intactas. Un BLOCKED heredado conserva su bloqueo y debe formalizarse como NC. La prueba de upgrade compara todas las filas V2 antes/después en un esquema sintético.
 
-Recorrido de NC: cualquier usuario reporta, elige responsable QUALITY distinto del reportante y adjunta motivo/evidencia textual. El inventario se bloquea aunque estuviera RELEASED/AVAILABLE. `aprobador` registra dictamen CONFORMING o NONCONFORMING para la versión actual. Solo el responsable decide: LIFT_HOLD exige ensayo/muestra conformes y devuelve a cuarentena si era el último bloqueo; RETURN_TO_SUPPLIER/SCRAP rechaza definitivamente y mantiene bloqueado. No se mueve cantidad ni se ejecuta devolución física. `calidad2` permite una decisión independiente cuando reporta `calidad`.
+Recorrido de NC: un usuario operativo (excepto Abastecimiento) reporta, elige responsable QUALITY distinto del reportante y adjunta motivo/evidencia textual. El inventario se bloquea aunque estuviera RELEASED/AVAILABLE. `aprobador` registra dictamen CONFORMING o NONCONFORMING para la versión actual. Solo el responsable decide: LIFT_HOLD exige ensayo/muestra conformes y devuelve a cuarentena si era el último bloqueo; RETURN_TO_SUPPLIER/SCRAP rechaza definitivamente y mantiene bloqueado. No se mueve cantidad ni se ejecuta devolución física. `calidad2` permite una decisión independiente cuando reporta `calidad`.
 
 Para pruebas aisladas, crear una base nueva en ese proyecto y usar `TEST_DB_URL=jdbc:postgresql://localhost:55432/proco_sprint2_test` al ejecutar Maven. Para Playwright: `E2E_URL=http://127.0.0.1:18088 npm --prefix frontend run test:e2e`. El proxy Vite admite `PROCO_API_TARGET` si se necesita desarrollo local con puertos separados.
 
@@ -153,7 +155,7 @@ El [registro de Sprint 2](docs/SPRINT-2-VERIFICATION.md) distingue pruebas realm
 [Especificación proporcionada](docs/PROCO_SPRINT3_PLAN.md), [diseño y contraste funcional](docs/SPRINT-3-DESIGN.md) y [verificación](docs/SPRINT-3-VERIFICATION.md).
 
 ```sh
-git switch codex/sprint-3-mixing
+git switch main
 DB_PORT=55434 BACKEND_PORT=18083 FRONTEND_PORT=18090 docker compose -p proco-sprint3 up -d --build
 ```
 
@@ -178,3 +180,35 @@ E2E_URL=http://127.0.0.1:18090 npm --prefix frontend run test:e2e
 ```
 
 Java local debe ser 21; Chromium se instala según las instrucciones de Playwright anteriores. Las pruebas de upgrade V2→V3 y V3→V4 usan esquemas sintéticos propios y comparan valores previos de material, NC, holds, auditoría e idempotencia. El CI ejecuta toda la suite contra PostgreSQL real y la interfaz contra Docker Compose desechable. No hay montaje físico, reserva, consumo ni integración corporativa en este sprint.
+
+## Sprint 4 P0 — montaje simulado y contención
+
+[Especificación](docs/SPRINT-4-PLAN.md), [diseño previo](docs/SPRINT-4-DESIGN.md), [resultados observados](docs/SPRINT-4-VERIFICATION.md). V5 es aditiva y conserva V1–V4. Cuenta ficticia adicional `abastecimiento` (PROCUREMENT), misma contraseña `Simulacion123!`; no puede liberar material ni autorizar mezclas.
+
+```sh
+git switch codex/sprint-4-containment
+DB_PORT=55436 BACKEND_PORT=18085 FRONTEND_PORT=18092 docker compose -p proco-sprint4 up -d --build
+```
+
+Abrir http://localhost:18092. Volumen independiente de las demos previas; no ejecutar `down -v`. El arranque conserva datos y no reinicia decisiones. Se reutilizan los tres lotes demo disponibles y las identidades de Sprint 3; los tests generan fixtures adicionales con identificadores únicos mediante la API.
+
+1. Crear y autorizar una mezcla como en Sprint 3. Como `tejeduria`, entrar en **Montajes y tareas**, seleccionar autorización, registrar motivo/evidencia e iniciar. El servidor revalida dentro del POST. Una ejecución por autorización; máximo una IN_PROGRESS por código de montaje.
+2. Reportar NC en un lote participante, por ejemplo como `tintoreria`, asignando `calidad`. En el mismo commit: inventario BLOCKED, mezcla REVOKED, montaje SUSPENDED y tareas OPEN para Almacén, Calidad, Tejeduría y GEO; Tintorería participa según regla.
+3. Entrar con cada identidad. En **Mis tareas**, seleccionar el montaje, aportar motivo/evidencia y acusar. Después registrar evidencia de la acción y completarla. El acuse no cierra la tarea. Solo la identidad que acusó puede completarla.
+4. `produccion` decide finalizar o cancelar con disposición documentada, después de cerrar todas las tareas. Cerrar NC no reactiva mezcla ni ejecución. No hay endpoint de reanudación.
+5. Una NC posterior a un montaje COMPLETED genera tareas de evaluación retrospectiva, conserva COMPLETED y registra alerta. Un rechazo agrega coordinación ficticia para `abastecimiento` aunque la mezcla ya estuviera revocada; no ejecuta devolución física.
+
+Una autorización vencida impide nuevos inicios. Durante ejecución impide completar y registra REVIEW_REQUIRED; admite cancelación documentada tras cerrar tareas. No hay vigilancia externa del reloj ni política industrial de caducidad aprobada.
+
+Regresión aislada (crear la base una sola vez):
+
+```sh
+docker compose -p proco-sprint4 exec -T db psql -U proco -d postgres -c 'CREATE DATABASE proco_sprint4_test'
+TEST_DB_URL=jdbc:postgresql://localhost:55436/proco_sprint4_test mvn -f backend/pom.xml verify
+npm --prefix frontend run build
+E2E_URL=http://127.0.0.1:18092 npm --prefix frontend run test:e2e
+```
+
+Para detener y conservar datos: `docker compose -p proco-sprint4 stop`; para volver a levantar los mismos contenedores: `docker compose -p proco-sprint4 start`. Esta entrega no implementa OLA, indicadores, exportaciones, inventario real, ERP, máquinas ni notificaciones externas.
+
+Después de ejecutar los E2E de Sprint 4, verificar reinicio y persistencia con `python3 scripts/verify-sprint4-restart.py --project proco-sprint4 --url http://127.0.0.1:18092`. Compara filas completas de diez tablas antes/después y reinicia solo ese proyecto, sin borrar volúmenes.

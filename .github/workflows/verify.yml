@@ -46,6 +46,10 @@ jobs:
       - run: npm --prefix frontend run test:e2e
         env:
           E2E_URL: http://127.0.0.1:18088
+      - name: Verify execution and containment persistence after restart
+        run: |
+          python3 scripts/verify-sprint4-restart.py --project proco-ci --url http://127.0.0.1:18088 > /tmp/proco-restart-verification.log
+          cat /tmp/proco-restart-verification.log
       - name: Collect Compose logs
         if: always()
         run: docker compose -p proco-ci logs --no-color > /tmp/proco-compose.log 2>&1
@@ -58,3 +62,4 @@ jobs:
             frontend/test-results
             /tmp/proco-compose-build.log
             /tmp/proco-compose.log
+            /tmp/proco-restart-verification.log
