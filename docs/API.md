@@ -1,4 +1,4 @@
-# Contrato HTTP del simulador PROCO Sprints 1 a 5
+# Contrato HTTP del simulador PROCO Sprints 1 a 6
 
 Autenticación HTTP Basic. Todas las rutas requieren identidad; datos sintéticos. GET no cambia estado. Los comandos de material y NC devuelven HTTP 200 con el lote actual; los de mezcla devuelven su propio expediente. `Idempotency-Key` UUID y `version` entero ≥ 0 obligatorios en todos los comandos. `reason` y `evidence` no vacíos, máximo 2000 caracteres. Errores: 400 formato, 401 autenticación, 403 autorización, 404 recurso, 409 versión/estado/clave incompatible, 422 regla incumplida, cuerpo `{status,message}` para errores de negocio.
 
@@ -214,3 +214,50 @@ JSON incluye legend, generatedAt, schemaVersion, execution/outcome, mix/assessme
 CSV: mismas condiciones y página de tasks, metadatos en columnas legend/generated_at/as_of, IDs, regla/versión, plazos/estados y evidencias. Cabeceras X-As-Of, X-Total-Count, X-Next-Cursor cuando hay más páginas. Filas con quoting y comillas duplicadas; controles/formatos invisibles se convierten a espacios, valores cuyo primer carácter significativo sea =,+,-,@ reciben apóstrofo. El JSON conserva el original. UI exporta una página por descarga; no afirma haber exportado toda una cohorte si hay nextCursor.
 
 Alertas y reportes no bloquean, liberan, suspenden, reanudan ni cierran. No hay worker ni comunicaciones externas. V1–V5 intactas; V6 añade regla/snapshots y columna objetivo OLA en idempotencia/auditoría, preservando filas anteriores. Configuración serializa por par de regla; no invierte locks de material.
+
+
+## Sprint 6 — diferencias y proveedor (SIM-6)
+
+POST `/api/receipts`, su Command/fingerprint y respuesta Lot permanecen compatibles. ReceiptService comparte su creación bajo la transacción existente: misma validación de saldo/duplicado/fecha y evento RECEIVED. Los comandos excepcionales devuelven su propio agregado `id/version` con nombres snake_case, no un Lot.
+
+| Método / ruta | Autoridad / efecto |
+|---|---|
+| GET `/api/receipt-discrepancies?orderCode=...&status=...&limit=100` | Autenticado; hasta100 recientes, limit1–100 |
+| GET `/api/receipt-discrepancies/{id}` y `/timeline` | Autenticado; datos, cantidades derivadas, saldo actual, historial |
+| POST `/api/receipt-discrepancies` | WAREHOUSE; pre-recepción OPEN sin lote |
+| POST `/api/receipt-discrepancies/{id}/confirm-count` | WAREHOUSE; OPEN→UNDER_REVIEW |
+| POST `/api/receipt-discrepancies/{id}/quality` | QUALITY, solo hallazgo explícito; concepto único |
+| POST `/api/receipt-discrepancies/{id}/review` | PROCUREMENT independiente; autoriza/revisa propuesta, AUTHORIZED |
+| POST `/api/receipt-discrepancies/{id}/accept` | WAREHOUSE distinto de autorizador; aceptación final bajo OC lock |
+| POST `/api/receipt-discrepancies/{id}/cancel` | WAREHOUSE solo OPEN; PROCUREMENT UNDER_REVIEW/AUTHORIZED |
+| GET `/api/supplier-cases?lotId=...&status=...&limit=100` | Autenticado; hasta100 recientes |
+| GET `/api/supplier-cases/{id}` y `/timeline` | Autenticado; caso, NC/lote/OC y todas las tareas vinculadas |
+| POST `/api/supplier-cases` | PROCUREMENT; adopción explícita de rechazo histórico, sin cambiar NC/lote |
+| POST `/api/supplier-cases/{id}/contact`, `/response`, `/disposition`, `/close` | PROCUREMENT; pasos comerciales versionados y auditados |
+
+Mutaciones exigen Idempotency-Key UUID, version>=0, reason/evidence no vacíos (máx2000); mismo espacio global actor/clave y replay de vista actual sin repetir efectos. 400 transporte/validación; 401 identidad; 403 rol/etapa de autoridad; 404 recurso/acción; 409 versión/estado/duplicado/clave incompatible; 422 cantidad/guardas/evidencia. El cliente conserva ruta/cuerpo/clave ante resultado incierto y discrimina estos agregados de lote/mezcla/ejecución/OLA.
+
+Creación de diferencia:
+
+```json
+{"version":0,"reason":"Falta documentada de simulación","evidence":"EV-S6","orderCode":"OC-H-001","supplierLot":"S6-SIM-001","productionDate":"2026-01-01","location":"PRE-SIM","supplierDocumentRef":"DOC-SIM","documentedQuantity":100,"observedQuantity":90,"technicalFinding":false}
+```
+
+Cantidades >=0, hasta11 enteros/3 decimales. Se exige diferencia numérica, exceso sobre saldo o technicalFinding=true. Saldo al reporte no reserva ni autoriza. Datos originales inmutables; confirm-count añade evidencia. quality: `outcome=FAVORABLE|UNFAVORABLE` solo con hallazgo y UNDER_REVIEW, único; no libera lote ni crea NC automática. review: `proposedAcceptedQuantity` >=0 y <=observado/saldo actual, `remainderPlan` obligatorio si queda cantidad observada no aceptada. No cambia datos originales; una revisión posterior AUTHORIZED queda como nuevo evento/version.
+
+accept no recibe nueva cantidad: usa la autorizada y recalcula saldo bajo `purchase_order FOR UPDATE`, compartido con recepción normal. Positiva crea un único lote UNDER_VERIFICATION/QUARANTINE;0 no crea lote. Terminal ACCEPTED_OBSERVED si acepta todo observado, ACCEPTED_PARTIAL si acepta parte, EXCESS_NOT_ACCEPTED si0; cancel termina CANCELLED_WITH_REASON. Respuesta conserva documented_quantity/observed_quantity, proposed_accepted_quantity, accepted_quantity, accepted_lot_id, balance_at_report/current_balance, documented_shortage/surplus, excess_over_balance_at_report y unaccepted_or_pending_quantity. Faltante documental y remanente observado no son lo mismo. Saldo cambiado:422 sin resolución/lote, se permite revisión explícita. Rechazos/cierres comerciales nunca reponen saldo OC.
+
+S10: nueva decisión NC RETURN_TO_SUPPLIER crea supplier_case y enlaces a todas las tareas REJECTION_COORDINATION/PROCUREMENT de esa NC dentro del mismo commit. No crea tareas nuevas para el caso; sin ejecución puede no haber tareas vinculadas. SCRAP no abre devolución. Adopción histórica POST: `{version: <versión actual lote>,lotId,ncId,reason,evidence}` exige NC REJECTED/RETURN_TO_SUPPLIER y lote REJECTED/BLOCKED; un caso por NC, sin backfill ni cambio de versión del lote.
+
+Comandos comerciales añaden `communicationRef` no vacía (máx200), motivo y evidencia:
+
+- contact: OPEN→SUPPLIER_CONTACT_RECORDED.
+- response: requiere contacto; `response=ACCEPTED|DISPUTED|NO_RESPONSE`, explícito y ficticio; RESPONSE_RECORDED.
+- disposition: requiere respuesta; `direction=RETURN_REQUESTED|CREDIT_REQUESTED|OTHER`, `treatment` obligatorio (incluye tratamiento de disputa/sin respuesta); DISPOSITION_DOCUMENTED.
+- close: requiere disposición, otro usuario Procurement distinto de disposition_by y todas las tareas vinculadas CLOSED. Debe enviar explícitamente `physicalReturnConfirmed:false,erpPosted:false`; true es inválido y los CHECK SQL prohíben guardarlo. CLOSED_ADMINISTRATIVELY terminal.
+
+Cada paso conserva autor, UTC, referencia y evidencia por separado, más ledger append-only. Cierre de tarea conserva contrato previo y no cierra caso; cierre de caso no reabre ni cierra ejecución/NC ni cambia lot.quantity, quality_state/inventory_state. No email, crédito, ERP ni retorno físico; las referencias son texto de simulación.
+
+Locks S03: clave→OC→diferencia→nuevo lote. Locks S10: clave→lote→mezclas/ejecuciones/tareas del rechazo→caso; comandos comerciales/adopción: lote→tareas ordenadas→caso, nunca OC u otro lote después. Fallo en lote/caso/auditoría revierte decisión nueva y command_result, conserva holds y decisiones previas. Ledger común supplier_workflow_event/SIM-6 y targets discrepancy_id/supplier_case_id nuevos en command_result; XOR extendido sin reescritura de filas anteriores. Definiciones/terminales/eventos/enlaces protegidos por triggers.
+
+V7 no modifica V1–V6 ni datos históricos. Lecturas acotadas por consulta sin N+1 por expediente; detalle por UUID abre históricos fuera de las100 filas recientes. No se añaden métricas/OLA/exportaciones para estos nuevos casos en este sprint.

@@ -35,7 +35,7 @@ class SupplierMigrationUpgradeTest {
    db.update("update containment_task set status='ACKNOWLEDGED',acknowledged_by='quality',acknowledged_at=now(),ack_reason='Original ack',ack_evidence='EV-ACK',version=1 where id=?",task);
    db.update("update containment_task set status='CLOSED',closed_by='quality',closed_at=now(),close_reason='Original close',close_evidence='EV-CLOSE',version=2 where id=?",task);
    db.update("update montage_execution set status='CLOSED_WITH_INCIDENT',ended_at=now(),ended_by='approver',disposition='V5 incident disposition',end_evidence='EV-END',version=2 where id=?",e);
-   db.update("insert into execution_event(id,execution_id,task_id,actor,role,event_type,reason,evidence,correlation_id,payload) values (?,?,?,'approver','PRODUCTION_APPROVER','COMPLETED','Original event','EV-END',?,'unaltered payload')",UUID.randomUUID(),e,task,key);
+   db.update("insert into execution_event(id,execution_id,task_id,actor,role,event_type,reason,evidence,correlation_id,payload) values (?,?,?,'approver','PRODUCTION_APPROVER','CLOSED_WITH_INCIDENT','Original event','EV-END',?,'unaltered payload')",UUID.randomUUID(),e,task,key);
    db.update("insert into command_result(actor,command_key,fingerprint,execution_id) values ('approver',?,'V5 fingerprint',?)",key,e);
    db.update("update lot set quality_state='REJECTED' where id=?",a);
    db.update("update non_conformity set status='REJECTED',disposition='RETURN_TO_SUPPLIER',decided_by='quality',decided_at=now(),decision_reason='Original rejection',decision_evidence='EV-OLD' where id=?",nc);

@@ -29,6 +29,10 @@ def snapshot():
 exists = subprocess.check_output(compose + ['exec', '-T', 'db', 'psql', '-U', 'proco', '-d', 'proco', '-At', '-c', "select to_regclass('ola_rule') is not null"]).strip()
 if exists == b't':
     tables.append('ola_rule')
+# Sprint 6 preserves commercial cases, links, events and purchase-order quantities as well.
+exists = subprocess.check_output(compose + ['exec', '-T', 'db', 'psql', '-U', 'proco', '-d', 'proco', '-At', '-c', "select to_regclass('supplier_case') is not null"]).strip()
+if exists == b't':
+    tables.extend(['purchase_order', 'receipt_discrepancy', 'supplier_case', 'supplier_case_task', 'supplier_workflow_event'])
 before = snapshot()
 assert before['montage_execution']['rows'] > 0, 'Run Sprint 4 E2E fixtures first'
 assert before['containment_task']['rows'] > 0, 'No containment data to verify'

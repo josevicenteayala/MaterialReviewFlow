@@ -169,4 +169,14 @@ class SupplierIntegrationTest {
   db.update("insert into non_conformity(id,lot_id,origin,status,responsible,opened_by,reason,evidence,disposition,decided_by,decided_at,decision_reason,decision_evidence) values (?,?,'POST_RELEASE','REJECTED','calidad','almacen','Synthetic legacy','EV','RETURN_TO_SUPPLIER','calidad',now(),'Legacy decision','EV')",nc,lot);long version=lv(lot);
   var before=db.queryForObject("select to_jsonb(n)::text from non_conformity n where id=?",String.class,nc);UUID key=UUID.randomUUID();var body=data(version,Map.of("lotId",lot,"ncId",nc));var adopted=call("abastecimiento","/supplier-cases",body,key);assertEquals(200,adopted.status,adopted.raw);assertEquals(id(adopted.data),id(call("abastecimiento","/supplier-cases",body,key).data));assertEquals(version,lv(lot));assertEquals(before,db.queryForObject("select to_jsonb(n)::text from non_conformity n where id=?",String.class,nc));assertEquals(409,call("abastecimiento2","/supplier-cases",body,UUID.randomUUID()).status);
  }
+
+ @Test void oneRejectionLinksEveryExistingProcurementTaskAcrossExecutions()throws Exception{
+  UUID a=lot("OC-H-001"),b=lot("OC-H-001"),one=id(start(approved(a,b))),two=id(start(approved(a,b))),n=nc(a),id=reject(a,n,"RETURN_TO_SUPPLIER");
+  var tasks=supplier(id).get("tasks");assertEquals(2,tasks.size());assertEquals(2,db.queryForObject("select count(*) from containment_task where nc_id=? and target_role='PROCUREMENT'",Integer.class,n));commercialSteps(id,"ACCEPTED");
+  for(int i=0;i<tasks.size();i++){
+   assertEquals(422,call("abastecimiento2","/supplier-cases/"+id+"/close",data(3,Map.of("communicationRef","SIM-CLOSE","physicalReturnConfirmed",false,"erpPosted",false)),UUID.randomUUID()).status);
+   String path="/tasks/"+tasks.get(i).get("id").asText();good("abastecimiento",path+"/acknowledge",data(0,Map.of()));good("abastecimiento",path+"/complete",data(1,Map.of()));
+  }
+  supplierAction(id,"abastecimiento2","close",Map.of("physicalReturnConfirmed",false,"erpPosted",false));assertEquals("SUSPENDED",execution(one).get("status").asText());assertEquals("SUSPENDED",execution(two).get("status").asText());assertEquals(1,db.queryForObject("select count(*) from supplier_case where nc_id=?",Integer.class,n));
+ }
 }

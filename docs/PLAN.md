@@ -79,7 +79,7 @@ El alcance completo original S01–S10 no se amplía silenciosamente: las tolera
 
 ## Sprint 5 — seguimiento operativo y cierre verificable
 
-Base main 71e8a3b (Sprints 1–4 integrados, CI del merge aprobada). [Plan](SPRINT-5-PLAN.md), [decisiones previas](SPRINT-5-DESIGN.md) y [verificación](SPRINT-5-VERIFICATION.md). Rama `codex/sprint-5-monitoring`; PR sin merge automático.
+Base main 71e8a3b (Sprints 1–4 integrados, CI del merge aprobada). [Plan](SPRINT-5-PLAN.md), [decisiones previas](SPRINT-5-DESIGN.md) y [verificación](SPRINT-5-VERIFICATION.md). Sprint 5 integrado en main mediante PR #4 (`29859588d98a52224ef5dceb475c472fb234b6d7`), CI de merge aprobada.
 
 - P0-A: V6 compatible, COMPLETED solo normal desde IN_PROGRESS; close-incident da CLOSED_WITH_INCIDENT desde SUSPENDED. Históricos V5 intactos; COMPLETED con suspensión se proyecta LEGACY_INCIDENT_CLOSURE. Esto sustituye únicamente la semántica de cierre de Sprint 4 para comandos nuevos.
 - P0-B: OLA DEMO inmutables/versionados por área/tipo, snapshots solo en tareas nuevas, UTC/minutos corridos, alertas calculadas sin efectos automáticos. GEO crea nuevas versiones con autorización, versión, clave y auditoría.
@@ -87,4 +87,17 @@ Base main 71e8a3b (Sprints 1–4 integrados, CI del merge aprobada). [Plan](SPRI
 - P1 posterior a P0 verificado: JSON de expediente acotado y CSV paginado protegido contra fórmulas/controles; solo lectura autenticada.
 - Cierre de entrega: regresión preserva los casos previos (expectativas de cierre suspendido ajustadas al nuevo contrato), migración V5→V6, concurrencia, navegador, Compose aislado y comparación de reglas/snapshots tras reinicio.
 
-S03 y S10 comerciales siguen parciales: propuesta de Sprint 6 para diferencia de OC y disposición comercial ficticia; no se declara cumplimiento industrial ni devolución física. OLA oficiales, ERP, máquinas, reserva/consumo, firmas y notificaciones externas permanecen fuera del alcance.
+Al cierre de Sprint 5, S03/S10 comerciales eran parciales. Sprint 6 implementa su alcance de simulación como se detalla abajo; no se declara cumplimiento industrial ni devolución física. OLA oficiales, ERP, máquinas, reserva/consumo, firmas y notificaciones externas permanecen fuera del alcance.
+
+
+## Sprint 6 — recepción excepcional y gestión comercial
+
+Base main 2985958 (Sprints 1–5 integrados). [Plan canónico](SPRINT-6-PLAN.md), [diseño previo y riesgos](SPRINT-6-DESIGN.md), [verificación](SPRINT-6-VERIFICATION.md). Rama `codex/sprint-6-supplier-workflows`, PR para revisión sin merge automático.
+
+- S6-01/02/03: documento/conteo/aceptación separados, confirmación Warehouse, Calidad solo ante hallazgo, autorización Procurement y aceptación Warehouse bajo el mismo lock OC/fábrica de recepción normal. Cantidad0 no crea lote; diferencia/exceso no reserva ni crea stock. Estados ACCEPTED_OBSERVED/PARTIAL y remanente explícito; terminalidad/versiones/auditoría.
+- S6-04: rechazo técnico RETURN_TO_SUPPLIER crea caso comercial único dentro de su transacción, enlaza tareas Procurement existentes sin duplicarlas; contacto/respuesta/disposición/cierre documentados. Sin montaje, no se fabrica tarea V5. SCRAP no se transforma en devolución.
+- Segregación: quien autoriza recepción difiere del conteo/reporte/Calidad; otro Procurement (`abastecimiento2`) cierra comercialmente después de tareas CLOSED. Rechazo técnico no se reabre. Cierre administrativo no cambia kilos, saldo, liberación ni bloqueo y conserva physical_return_confirmed/erp_posted=false.
+- V7 aditiva, ledger común supplier_workflow_event, targets nuevos de CommandRunner. No backfill: adopción histórica explícita, validada y auditable. Estados originales y V1–V6 se conservan.
+- P1 mínimo: bandejas acotadas y enlaces OC→diferencia→lote/NC→caso→tareas. P2 y exportaciones nuevas no se implementan. Regresión original ≥64 backend/21 E2E sin omisiones, nuevas carreras/rollback/upgrade y persistencia Docker.
+
+S03 se completa para el prototipo de lote/kg con aceptación controlada. S10 completa su seguimiento comercial simulado, no ejecución física/contable. Autoridades operativas y tolerancias contractuales siguen pendientes de validación real; sin ERP/EDI, transporte, reserva/consumo, sublotes ni emails.
