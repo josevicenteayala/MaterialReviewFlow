@@ -86,6 +86,20 @@ class SupplierIntegrationTest {
  JsonNode supplierAction(UUID id,String actor,String action,Map<String,Object> extra)throws Exception{var body=data(supplier(id).get("version").asLong(),Map.of("communicationRef","SIM-COM-"+action));body.putAll(extra);return good(actor,"/supplier-cases/"+id+"/"+action,body);}
  UUID reject(UUID lot,UUID nc,String disposition)throws Exception{good("aprobador","/lots/"+lot+"/nonconformities/"+nc+"/opinion",data(lv(lot),Map.of("outcome","NONCONFORMING")));good("calidad","/lots/"+lot+"/nonconformities/"+nc+"/reject",data(lv(lot),Map.of("disposition",disposition)));return disposition.equals("SCRAP")?null:db.queryForObject("select id from supplier_case where nc_id=?",UUID.class,nc);}
  void commercialSteps(UUID id,String response)throws Exception{supplierAction(id,"abastecimiento","contact",Map.of());supplierAction(id,"abastecimiento","response",Map.of("response",response));supplierAction(id,"abastecimiento","disposition",Map.of("direction","RETURN_REQUESTED","treatment","Gestión ficticia documentada, sin retorno físico"));}
+ @Test void missingOrderCodeIsReportedAsIncompletePreReceiptWithoutCreatingBusinessData()throws Exception{
+  String oc=order(100);var original=discrepancyBody(oc,100,90,false);
+  for(int variant=0;variant<4;variant++){
+   var body=new LinkedHashMap<>(original);
+   switch(variant){case 0->body.remove("orderCode");case 1->body.put("orderCode",null);case 2->body.put("orderCode","");case 3->body.put("orderCode","   ");}
+   UUID key=UUID.randomUUID();var reply=call("almacen","/receipt-discrepancies",body,key);
+   assertEquals(422,reply.status,reply.raw);assertTrue(reply.raw.contains("Faltan datos de pre-recepción"),reply.raw);
+   assertEquals(0,db.queryForObject("select count(*) from command_result where command_key=?",Integer.class,key));
+  }
+  assertEquals(0,db.queryForObject("select count(*) from receipt_discrepancy where supplier_lot=?",Integer.class,original.get("supplierLot")));
+  assertEquals(0,db.queryForObject("select count(*) from lot where order_code=?",Integer.class,oc));
+  var unknown=new LinkedHashMap<>(original);unknown.put("orderCode","UNKNOWN-S6-"+UUID.randomUUID().toString().substring(0,8));
+  var reply=call("almacen","/receipt-discrepancies",unknown,UUID.randomUUID());assertEquals(422,reply.status,reply.raw);assertTrue(reply.raw.contains("OC inexistente"),reply.raw);
+ }
  @Test void s03ShortageAndDocumentSurplusPreserveFactsAndOnlyCreateAcceptedQuarantine()throws Exception{
   for(int[] qty:List.of(new int[]{100,90},new int[]{90,100})){
    String oc=order(100);var d=difference(oc,qty[0],qty[1],false);UUID id=id(d);assertEquals(0,db.queryForObject("select count(*) from lot where order_code=?",Integer.class,oc));assertEquals(qty[0],d.get("documented_quantity").asInt());assertEquals(qty[1],d.get("observed_quantity").asInt());assertEquals(Math.max(qty[0]-qty[1],0),d.get("documented_shortage").asInt());assertEquals(Math.max(qty[1]-qty[0],0),d.get("documented_surplus").asInt());authorizeDifference(id,qty[1]);
