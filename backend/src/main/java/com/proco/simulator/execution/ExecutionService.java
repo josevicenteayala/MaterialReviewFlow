@@ -35,7 +35,7 @@ public class ExecutionService {
  public Map<String,Object> finish(UUID id,String action,ExecutionCommand c,UUID key,String actor,String role){
   return runner.runExecution(id,false,key,actor,role,"EXECUTION:"+id+":"+action+":"+c,()->{
    require(role.equals("PRODUCTION_APPROVER"),403,"Solo Producción decide cierre o cancelación");
-   require(Set.of("complete","cancel").contains(action),404,"Acción de ejecución inexistente");
+   require(Set.of("complete","cancel","close-incident").contains(action),404,"Acción de ejecución inexistente");
    var initial=store.get(id);UUID mix=(UUID)initial.get("mix_request_id");lockMix(mix);
    db.queryForList("select id from montage_execution where id=? for update",id);var e=store.get(id);
    require(((Number)e.get("version")).longValue()==c.version(),409,"Versión de ejecución desactualizada");
@@ -45,7 +45,8 @@ public class ExecutionService {
    require(db.queryForObject("select count(*) from containment_task where execution_id=? and status<>'CLOSED'",Integer.class,id)==0,422,"Completa todas las tareas antes de decidir disposición");
    require(db.queryForObject("select count(*) from containment_task where execution_id=? and target_role='QUALITY' and (closed_by=? or closed_by=?)",Integer.class,id,actor,e.get("started_by"))==0,422,"Revisión de Calidad debe ser independiente");
    if(action.equals("complete") && state.equals("IN_PROGRESS"))require(mixes.get(mix).usable(),422,"Revisión requerida: autorización no vigente/utilizable; no se permite completar. Documenta cancelación o intervención");
-   String next=action.equals("complete")?"COMPLETED":"CANCELLED";
+   String next=ExecutionPolicy.terminal(state,action);
+
    db.update("update montage_execution set status=?,ended_at=now(),ended_by=?,disposition=?,end_evidence=?,version=version+1 where id=?",next,actor,c.reason(),c.evidence(),id);
    audit.appendExecution(id,null,null,mix,null,actor,role,next,state,next,c.reason(),c.evidence(),key,c.toString());return store.get(id);
   },store::get,r->(UUID)r.get("id"));

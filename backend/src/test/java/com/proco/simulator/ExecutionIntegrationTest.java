@@ -96,7 +96,7 @@ class ExecutionIntegrationTest {
   good("almacen","/lots/"+a+"/available",data(lv(a),Map.of()));
   assertEquals("SUSPENDED",execution(e).get("status").asText());assertEquals("REVOKED",get(m).get("status").asText());
   assertThrows(org.springframework.dao.DataAccessException.class,()->db.update("update montage_execution set status='IN_PROGRESS',version=version+1 where id=?",e));
-  closeTasks(e);assertEquals("COMPLETED",good("produccion","/executions/"+e+"/complete",data(1,Map.of())).get("status").asText());
+  closeTasks(e);assertEquals("CLOSED_WITH_INCIDENT",good("produccion","/executions/"+e+"/close-incident",data(1,Map.of())).get("status").asText());
   assertEquals(409,call("produccion","/executions/"+e+"/cancel",data(2,Map.of()),UUID.randomUUID()).status);
   assertThrows(org.springframework.dao.DataAccessException.class,()->db.update("delete from execution_event where execution_id=?",e));
  }
@@ -172,7 +172,7 @@ class ExecutionIntegrationTest {
  @Test void taskCompletionAndNewNcSerializeBeforeExecutionDisposition()throws Exception{
   UUID a=lot("OC-H-001"),b=lot("OC-H-001"),e=id(start(approved(a,b)));nc(a);closeTasks(e);
   try(var pool=Executors.newFixedThreadPool(2)){var latch=new CountDownLatch(1);
-   var end=pool.submit(()->{latch.await();return call("produccion","/executions/"+e+"/complete",data(1,Map.of()),UUID.randomUUID());});var incident=pool.submit(()->{latch.await();return nc(b);});latch.countDown();
+   var end=pool.submit(()->{latch.await();return call("produccion","/executions/"+e+"/close-incident",data(1,Map.of()),UUID.randomUUID());});var incident=pool.submit(()->{latch.await();return nc(b);});latch.countDown();
    var result=end.get(15,TimeUnit.SECONDS);assertTrue(Set.of(200,422).contains(result.status),result.raw);assertNotNull(incident.get(15,TimeUnit.SECONDS));
    assertEquals(8,execution(e).get("tasks").size());assertEquals(4,db.queryForObject("select count(*) from containment_task where execution_id=? and status='OPEN'",Integer.class,e));
    if(result.status==200)assertEquals(4,db.queryForObject("select count(*) from containment_task where execution_id=? and task_type='RETROSPECTIVE_REVIEW'",Integer.class,e));else assertEquals("SUSPENDED",execution(e).get("status").asText());
@@ -203,5 +203,17 @@ class ExecutionIntegrationTest {
   UUID key=UUID.randomUUID();var body=data(lv(a),Map.of("origin","POST_RELEASE","responsible","calidad"));
   assertEquals(200,call("geo","/lots/"+a+"/nonconformities",body,key).status);assertEquals(200,call("geo","/lots/"+a+"/nonconformities",body,key).status);
   assertEquals(8,execution(e).get("tasks").size());assertEquals(1,db.queryForObject("select count(*) from inventory_hold where lot_id=?",Integer.class,a));
+ }
+
+ @Test void productionCompletionIsDistinctFromIncidentClosure()throws Exception{
+  UUID a=lot("OC-H-001"),e=id(start(approved(a,lot("OC-H-001"))));
+  assertEquals(409,call("produccion","/executions/"+e+"/close-incident",data(0,Map.of()),UUID.randomUUID()).status);
+  nc(a);closeTasks(e);
+  assertEquals(409,call("produccion","/executions/"+e+"/complete",data(1,Map.of()),UUID.randomUUID()).status);
+  assertEquals("SUSPENDED",execution(e).get("status").asText());
+  var key=UUID.randomUUID();var body=data(1,Map.of());var first=call("produccion","/executions/"+e+"/close-incident",body,key);assertEquals(200,first.status,first.raw);assertEquals("CLOSED_WITH_INCIDENT",first.data.get("status").asText());
+  assertEquals(200,call("produccion","/executions/"+e+"/close-incident",body,key).status);
+  assertEquals(409,call("produccion","/executions/"+e+"/complete",data(2,Map.of()),UUID.randomUUID()).status);
+  assertThrows(org.springframework.dao.DataAccessException.class,()->db.update("update montage_execution set status='COMPLETED',version=version+1 where id=?",e));
  }
 }
