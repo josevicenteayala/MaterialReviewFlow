@@ -1,15 +1,15 @@
 # Simulador PROCO SIM-0.2
 
-Sprints 1–5 integrados en `main`; Sprint 6 en revisión: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, rechazo definitivo, autorización de mezclas y ejecución simulada con contención por áreas. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
+Sprints 1–6 integrados en `main` (Sprint 6: PR #5, `91688b6`): aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, rechazo definitivo, autorización de mezclas y ejecución simulada con contención por áreas. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
 
-Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). Sprints 1–5 están en main (Sprint 5: merge PR #4, `2985958`). Sprint 6 se prepara en `codex/sprint-6-supplier-workflows`, sin modificar main ni hacer merge automático. El alcance técnico de mezclas y sus riesgos están en [docs/SPRINT-3-DESIGN.md](docs/SPRINT-3-DESIGN.md). El montaje físico, sublotes, devolución física, reserva/consumo, notificaciones externas y OLA operativos aprobados siguen pendientes; los plazos DEMO y alertas internas están implementados; el acuse de tareas de contención ya es persistente.
+Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). Sprints 1–6 están en main (Sprint 5: PR #4, `2985958`; Sprint 6: PR #5, `91688b6`). La [CI del commit integrado](https://github.com/josevicenteayala/MaterialReviewFlow/actions/runs/43518095726) aprobó 82 pruebas backend, 26 escenarios Playwright y persistencia. La preparación del taller se documenta en [UAT-READINESS.md](docs/UAT-READINESS.md); la aceptación funcional corresponde a las áreas. El alcance técnico de mezclas y sus riesgos están en [docs/SPRINT-3-DESIGN.md](docs/SPRINT-3-DESIGN.md). El montaje físico, sublotes, devolución física, reserva/consumo, notificaciones externas y OLA operativos aprobados siguen pendientes; los plazos DEMO y alertas internas están implementados; el acuse de tareas de contención ya es persistente.
 
 ## Repositorio y continuidad
 
-Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene Sprints 1–5. Sprint 6 se propone en un PR desde `codex/sprint-6-supplier-workflows`, sin merge automático. Su especificación es [docs/SPRINT-6-PLAN.md](docs/SPRINT-6-PLAN.md). El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
+Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene Sprints 1–6; Sprint 6 se integró mediante PR #5 (`91688b6`). Su especificación es [docs/SPRINT-6-PLAN.md](docs/SPRINT-6-PLAN.md). El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
 
 ```sh
-git clone --branch codex/sprint-6-supplier-workflows https://github.com/josevicenteayala/MaterialReviewFlow.git
+git clone --branch main https://github.com/josevicenteayala/MaterialReviewFlow.git
 cd MaterialReviewFlow
 docker compose up -d --build
 ```
@@ -253,12 +253,13 @@ El script conserva compatibilidad con Sprint 4 y añade reglas OLA a la comparac
 Al cierre de Sprint 5 quedaban pendientes S03 comercial y gestión de proveedor S10; Sprint 6 completa su alcance de simulación descrito abajo. Devolución física, calendario laboral/OLA oficial, ERP, máquinas, consumo/reserva y notificaciones externas siguen fuera de alcance. Alertas derivadas requieren consultar/actualizar la UI; no hay worker, email ni notificación sin sesión.
 
 
-## Sprint 6 — diferencias S03 y gestión comercial S10
+## Sprint 6 integrado — diferencias S03 y gestión comercial S10
 
-[Plan](docs/SPRINT-6-PLAN.md), [diseño previo y riesgos](docs/SPRINT-6-DESIGN.md), [evidencia de verificación](docs/SPRINT-6-VERIFICATION.md). Parte de main `2985958`, donde Sprint 5/PR #4 está integrado y su CI de merge aprobó. V7 es aditiva; no modifica órdenes, kilos, NC o eventos históricos ni V1–V6.
+[Plan](docs/SPRINT-6-PLAN.md), [diseño previo y riesgos](docs/SPRINT-6-DESIGN.md), [evidencia de verificación](docs/SPRINT-6-VERIFICATION.md). Se desarrolló sobre main `2985958` (Sprint 5/PR #4) y se integró mediante PR #5 en `91688b6`, cuya CI aprobó Maven, Playwright, Compose y persistencia. V7 es aditiva; no modifica órdenes, kilos, NC o eventos históricos ni V1–V6.
 
 ```sh
-git switch codex/sprint-6-supplier-workflows
+git switch main
+git pull --ff-only
 DB_PORT=55440 BACKEND_PORT=18089 FRONTEND_PORT=18096 docker compose -p proco-sprint6 up -d --build
 ```
 
