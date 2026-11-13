@@ -66,7 +66,7 @@ public class NcService {
                     } else {
                         require(c.disposition()!=null && Set.of("RETURN_TO_SUPPLIER","SCRAP").contains(c.disposition()),422,"Indica disposición RETURN_TO_SUPPLIER o SCRAP");
                         db.update("update lot set quality_state='REJECTED',inventory_state='BLOCKED' where id=?",lotId);
-                        revocations.revoke(lotId,actor,c.reason(),c.evidence(),key,"REJECTED");
+                        revocations.revoke(lotId,caseId,actor,c.reason(),c.evidence(),key,"REJECTED");
                         disposition=c.disposition();
                     }
                     db.update("update non_conformity set status=?,disposition=?,decided_by=?,decided_at=now(),decision_reason=?,decision_evidence=? where id=?",

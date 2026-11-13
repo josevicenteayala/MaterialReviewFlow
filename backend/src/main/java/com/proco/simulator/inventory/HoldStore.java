@@ -16,18 +16,18 @@ public class HoldStore {
     public void place(UUID lot, UUID nc, String actor, String reason, String evidence, UUID correlation) {
         db.update("insert into inventory_hold(id,lot_id,nc_id,opened_by,reason,evidence,correlation_id) values (?,?,?,?,?,?,?)",
                 UUID.randomUUID(), lot, nc, actor, reason, evidence, correlation);
-        block(lot,actor,reason,evidence,correlation);
+        block(lot,nc,actor,reason,evidence,correlation);
     }
 
     public void formalize(UUID lot, UUID nc, String actor, String reason, String evidence, UUID correlation) {
         int associated = db.update("update inventory_hold set nc_id=? where lot_id=? and nc_id is null and status='ACTIVE'", nc, lot);
         if (associated == 0) place(lot, nc, actor, reason, evidence, correlation);
-        else block(lot,actor,reason,evidence,correlation);
+        else block(lot,nc,actor,reason,evidence,correlation);
     }
 
-    private void block(UUID lot,String actor,String reason,String evidence,UUID correlation) {
+    private void block(UUID lot,UUID nc,String actor,String reason,String evidence,UUID correlation) {
         db.update("update lot set inventory_state='BLOCKED' where id=?",lot);
-        revocations.revoke(lot,actor,reason,evidence,correlation,"INVENTORY_HOLD");
+        revocations.revoke(lot,nc,actor,reason,evidence,correlation,"INVENTORY_HOLD");
     }
 
     public void lift(UUID lot, UUID nc, String actor, String reason, String evidence) {

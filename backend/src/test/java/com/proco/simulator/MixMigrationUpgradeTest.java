@@ -23,7 +23,7 @@ class MixMigrationUpgradeTest {
    db.update("insert into audit_event(id,lot_id,actor,role,event_type,reason,evidence,rule_version,correlation_id,payload) values (?,?,'reporter','WAREHOUSE','LEGACY_RELEASE','original','EV-OLD','SIM-1',?,'original command')",UUID.randomUUID(),lot,key);
    db.update("insert into command_result values ('reporter',?,'unchanged fingerprint',?)",key,lot);
    var tables=List.of("app_user","specification","purchase_order","lot","non_conformity","nc_opinion","inventory_hold","audit_event","command_result");Map<String,List<String>> before=new HashMap<>();for(String table:tables)before.put(table,rows(db,table));
-   Flyway.configure().dataSource(source).schemas(schema).load().migrate();
+   Flyway.configure().dataSource(source).schemas(schema).target("4").load().migrate();
    for(String table:tables)assertEquals(before.get(table),rows(db,table),table);
    assertEquals(0,db.queryForObject("select count(*) from command_result where mix_id is not null",Integer.class));
    assertEquals(0,db.queryForObject("select count(*) from mix_request",Integer.class));assertEquals(0,db.queryForObject("select count(*) from mix_event",Integer.class));
