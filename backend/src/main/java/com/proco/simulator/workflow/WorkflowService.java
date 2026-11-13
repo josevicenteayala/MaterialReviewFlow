@@ -13,14 +13,14 @@ import java.time.LocalDate;
 import static com.proco.simulator.shared.RuleException.require;
 @Service
 public class WorkflowService {
- private final JdbcTemplate db; private final LotStore lots; private final AuditLog audit; private final CommandRunner runner; private final HoldStore holds;
- public WorkflowService(JdbcTemplate db,LotStore lots,AuditLog audit,CommandRunner runner,HoldStore holds){this.db=db;this.lots=lots;this.audit=audit;this.runner=runner;this.holds=holds;}
+ private final JdbcTemplate db; private final LotStore lots; private final AuditLog audit; private final CommandRunner runner; private final HoldStore holds;private final ReceiptService receipts;
+ public WorkflowService(JdbcTemplate db,LotStore lots,AuditLog audit,CommandRunner runner,HoldStore holds,ReceiptService receipts){this.receipts=receipts;this.db=db;this.lots=lots;this.audit=audit;this.runner=runner;this.holds=holds;}
  public Lot execute(UUID id,String action,Command c,UUID key,String actor,String role){
   String fingerprint=id+":"+action+":"+c;
   return runner.run(id,key,actor,role,fingerprint,()->{
    String expected=switch(action){case "create","available"->"WAREHOUSE";case "inspect"->"QUALITY";case "sample"->"QUALITY,WAREHOUSE";case "test"->"LAB_TECH";case "release"->"LAB_APPROVER";default->throw new RuleException(404,"Acción inexistente");};
    require(Arrays.asList(expected.split(",")).contains(role),403,"El rol no está autorizado para esta acción");
-   if(action.equals("create"))return create(c,key,actor,role);
+   if(action.equals("create"))return receipts.create(c,key,actor,role);
    Lot l=runner.lock(id,c.version());
    require(!l.qualityState().equals("REJECTED"),409,"El rechazo es definitivo; el lote no admite más transiciones");
    switch(action){
@@ -37,17 +37,6 @@ public class WorkflowService {
    }
    Lot result=runner.advance(id,c.version());audit.append(id,actor,role,action.toUpperCase(),state(l),state(result),c.reason(),c.evidence(),key,c.toString());return result;
   });
- }
- private Lot create(Command c,UUID key,String actor,String role){
-  require(c.version()==0,409,"Una recepción nueva requiere versión 0");
-  require(c.orderCode()!=null && c.supplierLot()!=null&&!c.supplierLot().isBlank()&&c.productionDate()!=null&&c.quantity()!=null&&c.location()!=null&&!c.location().isBlank(),422,"Faltan OC, lote, fecha, cantidad o ubicación");
-  require(!c.productionDate().isAfter(LocalDate.now(java.time.ZoneOffset.UTC)),422,"La fecha de fabricación no puede ser futura");
-  var orders=db.queryForList("select * from purchase_order where code=? for update",c.orderCode());require(!orders.isEmpty(),422,"OC inexistente");
-  var received=db.queryForObject("select coalesce(sum(quantity),0) from lot where order_code=?",java.math.BigDecimal.class,c.orderCode());
-  require(received.add(c.quantity()).compareTo((java.math.BigDecimal)orders.getFirst().get("expected_quantity"))<=0,422,"La recepción supera el saldo de la OC");
-  require(db.queryForObject("select count(*) from lot where order_code=? and supplier_lot=?",Integer.class,c.orderCode(),c.supplierLot())==0,409,"Lote de proveedor duplicado en esta OC");
-  UUID id=UUID.randomUUID();db.update("insert into lot(id,order_code,supplier_lot,production_date,quantity,location,quality_state,inventory_state) values (?,?,?,?,?,?,'UNDER_VERIFICATION','QUARANTINE')",id,c.orderCode(),c.supplierLot(),c.productionDate(),c.quantity(),c.location());
-  Lot result=lots.get(id);audit.append(id,actor,role,"RECEIVED",null,state(result),c.reason(),c.evidence(),key,c.toString());return result;
  }
  private String state(Lot l){return l.qualityState()+" / "+l.inventoryState();}
 }

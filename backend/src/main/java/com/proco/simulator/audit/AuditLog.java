@@ -46,4 +46,14 @@ public class AuditLog {
  public void appendOla(UUID rule,String actor,String role,String reason,String evidence,UUID key,String payload){
   db.update("insert into execution_event(id,ola_rule_id,actor,role,event_type,reason,evidence,correlation_id,payload,rule_version) values (?,?,?,?,'OLA_RULE_CREATED',?,?,?,?,'SIM-5')",UUID.randomUUID(),rule,actor,role,reason,evidence,key,payload);
  }
+ public void appendSupplier(UUID discrepancy,UUID supplierCase,UUID lot,String actor,String role,String event,String from,String to,String reason,String evidence,UUID key,String payload){
+  db.update("insert into supplier_workflow_event(id,discrepancy_id,supplier_case_id,lot_id,actor,role,event_type,from_state,to_state,reason,evidence,correlation_id,payload) values (?,?,?,?,?,?,?,?,?,?,?,?,?)",UUID.randomUUID(),discrepancy,supplierCase,lot,actor,role,event,from,to,reason,evidence,key,payload);
+ }
+ @Transactional(propagation=Propagation.REQUIRES_NEW)
+ public void deniedSupplier(UUID id,boolean discrepancy,String actor,String role,String reason,UUID key,String payload){
+  String table=discrepancy?"receipt_discrepancy":"supplier_case";
+  UUID existing=id!=null&&Boolean.TRUE.equals(db.queryForObject("select exists(select 1 from "+table+" where id=?)",Boolean.class,id))?id:null;
+  appendSupplier(discrepancy?existing:null,discrepancy?null:existing,null,actor,role,"COMMAND_DENIED",null,null,reason,"Intento rechazado",key,payload);
+ }
+ public List<Map<String,Object>> supplierTimeline(UUID id,boolean discrepancy){return db.queryForList("select * from supplier_workflow_event where "+(discrepancy?"discrepancy_id":"supplier_case_id")+"=? order by occurred_at,id",id);}
 }
