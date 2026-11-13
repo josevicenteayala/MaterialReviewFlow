@@ -90,9 +90,9 @@ Base main 71e8a3b (Sprints 1–4 integrados, CI del merge aprobada). [Plan](SPRI
 Al cierre de Sprint 5, S03/S10 comerciales eran parciales. Sprint 6 implementa su alcance de simulación como se detalla abajo; no se declara cumplimiento industrial ni devolución física. OLA oficiales, ERP, máquinas, reserva/consumo, firmas y notificaciones externas permanecen fuera del alcance.
 
 
-## Sprint 6 — recepción excepcional y gestión comercial
+## Sprint 6 integrado — recepción excepcional y gestión comercial
 
-Base main 2985958 (Sprints 1–5 integrados). [Plan canónico](SPRINT-6-PLAN.md), [diseño previo y riesgos](SPRINT-6-DESIGN.md), [verificación](SPRINT-6-VERIFICATION.md). Rama `codex/sprint-6-supplier-workflows`, PR para revisión sin merge automático.
+Base main 2985958 (Sprints 1–5 integrados). [Plan canónico](SPRINT-6-PLAN.md), [diseño previo y riesgos](SPRINT-6-DESIGN.md), [verificación](SPRINT-6-VERIFICATION.md). Integrado mediante PR #5 en main `91688b6d6d2f7b547802d708c9429b2ebc6cc02f`. [CI del SHA integrado](https://github.com/josevicenteayala/MaterialReviewFlow/actions/runs/43518095726): 82 pruebas backend, 26 escenarios Playwright y persistencia aprobados. [Preparación para UAT](UAT-READINESS.md), sin aceptación funcional ni nuevas reglas de negocio.
 
 - S6-01/02/03: documento/conteo/aceptación separados, confirmación Warehouse, Calidad solo ante hallazgo, autorización Procurement y aceptación Warehouse bajo el mismo lock OC/fábrica de recepción normal. Cantidad0 no crea lote; diferencia/exceso no reserva ni crea stock. Estados ACCEPTED_OBSERVED/PARTIAL y remanente explícito; terminalidad/versiones/auditoría.
 - S6-04: rechazo técnico RETURN_TO_SUPPLIER crea caso comercial único dentro de su transacción, enlaza tareas Procurement existentes sin duplicarlas; contacto/respuesta/disposición/cierre documentados. Sin montaje, no se fabrica tarea V5. SCRAP no se transforma en devolución.
