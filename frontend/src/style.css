@@ -4,3 +4,5 @@ fieldset{border:0;padding:0;margin:0;min-width:0}fieldset:disabled{opacity:.6}.n
 
 .mix-table th:nth-child(2),.mix-table td:nth-child(2){white-space:nowrap;min-width:76px}
 .executions .opinion small,.executions .detail>p{overflow-wrap:anywhere}.badge.SUSPENDED{background:#fff0d0;color:#774600}.executions .detail>.badge{display:inline-block}
+
+.supplier-workflows .detail p,.supplier-workflows .opinion small{overflow-wrap:anywhere}
