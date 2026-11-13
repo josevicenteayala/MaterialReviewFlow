@@ -19,8 +19,9 @@ public class NcService {
     private final CommandRunner runner;
     private final AuditLog audit;
     private final MixRevocations revocations;
+    private final com.proco.simulator.supplier.SupplierCaseRegistry supplierCases;
 
-    public NcService(JdbcTemplate db, NcStore cases, HoldStore holds, CommandRunner runner, AuditLog audit,MixRevocations revocations) {
+    public NcService(JdbcTemplate db, NcStore cases, HoldStore holds, CommandRunner runner, AuditLog audit,MixRevocations revocations,com.proco.simulator.supplier.SupplierCaseRegistry supplierCases) {this.supplierCases=supplierCases;
         this.db=db; this.cases=cases; this.holds=holds; this.runner=runner; this.audit=audit;this.revocations=revocations;
     }
 
@@ -71,6 +72,7 @@ public class NcService {
                     }
                     db.update("update non_conformity set status=?,disposition=?,decided_by=?,decided_at=now(),decision_reason=?,decision_evidence=? where id=?",
                             lift?"CLOSED":"REJECTED",disposition,actor,c.reason(),c.evidence(),caseId);
+                    if(!lift && disposition.equals("RETURN_TO_SUPPLIER"))supplierCases.create(lotId,caseId,actor,role,c.reason(),c.evidence(),key,false);
                 }
             }
             Lot result=runner.advance(lotId,lot.version());

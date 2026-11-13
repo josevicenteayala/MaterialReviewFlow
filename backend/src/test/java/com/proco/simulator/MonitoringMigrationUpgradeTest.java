@@ -38,7 +38,7 @@ class MonitoringMigrationUpgradeTest {
    db.update("insert into execution_event(id,execution_id,task_id,actor,role,event_type,reason,evidence,correlation_id,payload) values (?,?,?,'approver','PRODUCTION_APPROVER','COMPLETED','Original event','EV-END',?,'unaltered payload')",UUID.randomUUID(),e,task,key);
    db.update("insert into command_result(actor,command_key,fingerprint,execution_id) values ('approver',?,'V5 fingerprint',?)",key,e);
    var tables=db.queryForList("select tablename from pg_tables where schemaname=? and tablename<>'flyway_schema_history' order by tablename",String.class,schema);Map<String,List<String>> before=new HashMap<>();for(String t:tables)before.put(t,rows(db,t));
-   Flyway.configure().dataSource(source).schemas(schema).load().migrate();for(String t:tables)assertEquals(before.get(t),rows(db,t),t);
+   Flyway.configure().dataSource(source).schemas(schema).target("6").load().migrate();for(String t:tables)assertEquals(before.get(t),rows(db,t),t);
    assertEquals(6,db.queryForObject("select max(version::integer) from flyway_schema_history where success",Integer.class));
    var historical=db.queryForMap("select * from containment_task where id=?",task);assertNull(historical.get("ola_rule_id"));assertNull(historical.get("ack_due_at"));assertEquals("NOT_CONFIGURED",OlaPolicy.project(historical,Instant.now()).get("ack_ola_status"));
    Instant now=Instant.now().plusSeconds(1);var filter=MonitoringFilter.of(now.minusSeconds(86400),now.plusSeconds(1),null,null,"LEGACY-S5",null,null,25,null,Clock.fixed(now,ZoneOffset.UTC));

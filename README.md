@@ -1,15 +1,15 @@
 # Simulador PROCO SIM-0.2
 
-Sprints 1–4 integrados en `main`; Sprint 5 en revisión: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, rechazo definitivo, autorización de mezclas y ejecución simulada con contención por áreas. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
+Sprints 1–5 integrados en `main`; Sprint 6 en revisión: aplicación web local para recorrer **Almacén → Calidad → Laboratorio → liberación técnica → disponibilidad**, con expediente formal de NC, bloqueos persistentes, rechazo definitivo, autorización de mezclas y ejecución simulada con contención por áreas. Java 21, Spring Boot 4.0.0, PostgreSQL 17, React 19/TypeScript y Docker Compose. Datos y tolerancias ficticios; únicamente simulación.
 
-Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). Sprints 1–4 están en main (Sprint 4: merge PR #3, `71e8a3b`). Sprint 5 se prepara en `codex/sprint-5-monitoring`, sin modificar main ni hacer merge automático. El alcance técnico de mezclas y sus riesgos están en [docs/SPRINT-3-DESIGN.md](docs/SPRINT-3-DESIGN.md). El montaje físico, sublotes, devolución física, reserva/consumo, notificaciones externas y OLA operativos aprobados siguen pendientes; los plazos DEMO y alertas internas están implementados; el acuse de tareas de contención ya es persistente.
+Antes de implementar se registraron [ambigüedades, supuestos y plan de cuatro entregas](docs/PLAN.md). Las fuentes originales están en [docs/requirements](docs/requirements). Sprints 1–5 están en main (Sprint 5: merge PR #4, `2985958`). Sprint 6 se prepara en `codex/sprint-6-supplier-workflows`, sin modificar main ni hacer merge automático. El alcance técnico de mezclas y sus riesgos están en [docs/SPRINT-3-DESIGN.md](docs/SPRINT-3-DESIGN.md). El montaje físico, sublotes, devolución física, reserva/consumo, notificaciones externas y OLA operativos aprobados siguen pendientes; los plazos DEMO y alertas internas están implementados; el acuse de tareas de contención ya es persistente.
 
 ## Repositorio y continuidad
 
-Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene Sprints 1–4. Sprint 5 se propone en un PR desde `codex/sprint-5-monitoring`, sin merge automático. Su especificación es [docs/SPRINT-5-PLAN.md](docs/SPRINT-5-PLAN.md). El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
+Repositorio compartido: [josevicenteayala/MaterialReviewFlow](https://github.com/josevicenteayala/MaterialReviewFlow). La rama `main` contiene Sprints 1–5. Sprint 6 se propone en un PR desde `codex/sprint-6-supplier-workflows`, sin merge automático. Su especificación es [docs/SPRINT-6-PLAN.md](docs/SPRINT-6-PLAN.md). El plan general conserva como pendientes sublotes, devolución física y evidencias de archivo. Los supuestos pendientes siguen documentados y requieren validación funcional antes de una adopción operativa.
 
 ```sh
-git clone --branch codex/sprint-5-monitoring https://github.com/josevicenteayala/MaterialReviewFlow.git
+git clone --branch codex/sprint-6-supplier-workflows https://github.com/josevicenteayala/MaterialReviewFlow.git
 cd MaterialReviewFlow
 docker compose up -d --build
 ```
@@ -37,9 +37,10 @@ Abrir [http://localhost:8088](http://localhost:8088). La primera construcción d
 | `produccion` | PRODUCTION_APPROVER |
 | `geo` | GEO |
 | `tintoreria` | DYEING |
-| `abastecimiento` | PROCUREMENT (coordinación ficticia de rechazo) |
+| `abastecimiento` | PROCUREMENT (gestión comercial ficticia) |
+| `abastecimiento2` | PROCUREMENT (cierre comercial independiente) |
 
-Contraseña de los diez: **`Simulacion123!`**. Cuentas ficticias persistidas con BCrypt; credenciales enviadas con HTTP Basic explícito, sin cookies ni almacenamiento local. Al salir se elimina la credencial de la memoria de la interfaz. El selector elige identidad, no concede permisos. API y PostgreSQL solo se publican en loopback.
+Contraseña de los once: **`Simulacion123!`**. Cuentas ficticias persistidas con BCrypt; credenciales enviadas con HTTP Basic explícito, sin cookies ni almacenamiento local. Al salir se elimina la credencial de la memoria de la interfaz. El selector elige identidad, no concede permisos. API y PostgreSQL solo se publican en loopback.
 
 Se generan dos referencias, dos proveedores/OC y dos lotes iniciales (hilo y elastano), en cuarentena, con eventos auditables. Los comandos semilla tienen claves fijas y se reejecutan idempotentemente al arrancar: no reinician el avance del material.
 
@@ -73,6 +74,7 @@ Monolito modular con composición desde `workflow`; sin motor BPMN ni servicios 
 | `quality` | Condiciones de inspección/reinspección |
 | `laboratory` | Criterios críticos y segregación de aprobación |
 | `inventory` | Bloqueos identificados y condiciones de disponibilidad |
+| `supplier` | Pre-recepción excepcional, aceptación controlada y casos comerciales separados del rechazo técnico |
 | `monitoring` | Reglas OLA DEMO, alertas derivadas, dashboard y exportación de evidencia |
 | `execution` | Inicio/finalización de montajes simulados, suspensión y tareas por área |
 | `mixing` | Solicitud/conceptos/decisiones, elegibilidad y revocación transaccional por montaje |
@@ -116,7 +118,7 @@ npm --prefix frontend ci
 npm --prefix frontend run build
 ```
 
-Crear `proco_test` solo una vez. La suite arranca servidores HTTP reales en 18080, 18180, 18280 y 18380 y usa PostgreSQL real en `proco_test`, separado de la demo `proco`. Puede cambiarse la URL con `TEST_DB_URL`; usuario/contraseña con `DB_USER`/`DB_PASSWORD`. Los tests insertan lotes únicos y conservan auditoría, sin borrar datos. Si se ejecutan miles de veces sobre la misma base, usar una base de prueba nueva por el saldo finito de OC.
+Crear `proco_test` solo una vez. La suite arranca servidores HTTP reales en 18080, 18180, 18280, 18380 y 18480 y usa PostgreSQL real en `proco_test`, separado de la demo `proco`. Puede cambiarse la URL con `TEST_DB_URL`; usuario/contraseña con `DB_USER`/`DB_PASSWORD`. Los tests insertan lotes únicos y conservan auditoría, sin borrar datos. Si se ejecutan miles de veces sobre la misma base, usar una base de prueba nueva por el saldo finito de OC.
 
 Pruebas: política de límites y segregación; S01 por API; retención/reinspección/reensayo; roles, ensayo faltante y disponibilidad anticipada; concurrencia 200/409; idempotencia; validación/autenticación; trigger de inmutabilidad.
 
@@ -217,7 +219,7 @@ Para detener y conservar datos: `docker compose -p proco-sprint4 stop`; para vol
 Después de ejecutar los E2E de Sprint 4, verificar reinicio y persistencia con `python3 scripts/verify-sprint4-restart.py --project proco-sprint4 --url http://127.0.0.1:18092`. Compara filas completas de diez tablas antes/después y reinicia solo ese proyecto, sin borrar volúmenes.
 
 
-## Sprint 5 — seguimiento, OLA DEMO y cierre inequívoco
+## Sprint 5 integrado — seguimiento, OLA DEMO y cierre inequívoco
 
 [Plan](docs/SPRINT-5-PLAN.md), [diseño previo](docs/SPRINT-5-DESIGN.md), [resultados comprobados](docs/SPRINT-5-VERIFICATION.md). Base main `71e8a3b`, PR #3 integrado. V6 conserva V1–V5 y todas las filas históricas; los OLA de tareas V5 permanecen sin configurar. No ejecutar migraciones ni pruebas en el volumen de otra demo.
 
@@ -248,4 +250,49 @@ python3 scripts/verify-sprint4-restart.py --project proco-sprint5 --url http://1
 
 El script conserva compatibilidad con Sprint 4 y añade reglas OLA a la comparación si existe V6; snapshots y plazos están incluidos en las filas completas de tareas. Detener: `docker compose -p proco-sprint5 stop`; reabrir cuando sea necesario: `docker compose -p proco-sprint5 start`. Sin borrar volúmenes.
 
-Siguen fuera de alcance S03 comercial completo, devolución física S10, calendario laboral/OLA oficial, ERP, máquinas, consumo/reserva y notificaciones externas. Alertas derivadas requieren consultar/actualizar la UI; no hay worker, email ni notificación sin sesión.
+Al cierre de Sprint 5 quedaban pendientes S03 comercial y gestión de proveedor S10; Sprint 6 completa su alcance de simulación descrito abajo. Devolución física, calendario laboral/OLA oficial, ERP, máquinas, consumo/reserva y notificaciones externas siguen fuera de alcance. Alertas derivadas requieren consultar/actualizar la UI; no hay worker, email ni notificación sin sesión.
+
+
+## Sprint 6 — diferencias S03 y gestión comercial S10
+
+[Plan](docs/SPRINT-6-PLAN.md), [diseño previo y riesgos](docs/SPRINT-6-DESIGN.md), [evidencia de verificación](docs/SPRINT-6-VERIFICATION.md). Parte de main `2985958`, donde Sprint 5/PR #4 está integrado y su CI de merge aprobó. V7 es aditiva; no modifica órdenes, kilos, NC o eventos históricos ni V1–V6.
+
+```sh
+git switch codex/sprint-6-supplier-workflows
+DB_PORT=55440 BACKEND_PORT=18089 FRONTEND_PORT=18096 docker compose -p proco-sprint6 up -d --build
+```
+
+Abrir http://localhost:18096. Nuevo proyecto/volumen, mismas cuentas y nueva `abastecimiento2`, todas con `Simulacion123!`. No requiere Java/Node instalados para usar los contenedores.
+
+**Diferencia de recepción (S03):**
+
+1. `almacen` abre **Recepción y proveedor → Nueva diferencia de recepción**. Ejemplo: OC-H-001, documento100kg, observado90kg, datos de proveedor/fecha/ubicación y evidencia. No se crea lote ni se reserva saldo. Confirmar conteo con evidencia nueva.
+2. Si hay hallazgo documental/técnico, marcarlo al capturar; `calidad` debe emitir concepto favorable. Una diferencia solo aritmética no requiere Calidad ni genera NC automática. Un concepto desfavorable impide autorizar; cancelar y abrir otro caso para corregir los datos originales.
+3. `abastecimiento` autoriza cantidad propuesta (ej.80kg) y documenta remanente no aceptado (10kg). La falta documental de10kg y el remanente observado de10kg son datos distintos. La autorización no reserva saldo; Procurement puede revisarla antes de aceptar, con nueva versión y evento.
+4. `almacen` ejecuta la aceptación: recalcula el saldo OC bajo lock y reutiliza la recepción normal. Solo80kg forman lote UNDER_VERIFICATION/QUARANTINE. Requiere después inspección/ensayo/liberación/disponibilidad normales. Cantidad0 no crea lote. No se convierte el exceso en inventario disponible ni se ajusta la OC silenciosamente.
+5. Para excedente, se puede informar observado/documentado20000kg en una OC demo de10000; el expediente existe pero no puede autorizarse/recibirse por encima del saldo actual. Si otra recepción consume saldo tras autorizar, aceptar falla sin cambios; Abastecimiento debe revisar explícitamente la propuesta.
+
+**Rechazo y proveedor (S10):**
+
+1. Continuar el flujo existente de NC: dictamen NONCONFORMING y decisión QUALITY `RETURN_TO_SUPPLIER`. En la misma transacción se abre un caso comercial único, enlazando todas las tareas REJECTION_COORDINATION/PROCUREMENT existentes. Si no hubo montaje, el caso comercial permite gestionar sin crear tareas/ejecuciones ficticias. SCRAP no abre caso de devolución.
+2. `abastecimiento` registra contacto simulado, respuesta ACCEPTED/DISPUTED/NO_RESPONSE y disposición RETURN_REQUESTED/CREDIT_REQUESTED/OTHER con referencia/motivo/evidencia y tratamiento explícito. No se envía email ni se crea crédito.
+3. En el caso, abrir la ejecución de cada tarea Procurement vinculada y confirmar su acuse/acción por el mecanismo existente. Su cierre no cierra automáticamente el caso; el caso solo puede cerrarse cuando sus tareas estén CLOSED.
+4. `abastecimiento2` revisa y cierra administrativamente con evidencia, confirmando **sin retorno físico ni ERP**. Debe ser distinto del autor de disposición. Material sigue REJECTED/BLOCKED, mezcla revocada, montaje suspendido y cantidad/saldo sin cambios. Gestión comercial cerrada no es devolución realizada.
+5. Rechazos anteriores a V7 no se convierten por backfill. **Adoptar rechazo histórico** exige Procurement, lote/NC RETURN_TO_SUPPLIER y versión; vincula sin reescribirlos y rechaza duplicados/SCRAP.
+
+Bandejas muestran hasta100 expedientes recientes, con filtro local por OC/lote/estado y acceso por UUID a cualquiera anterior. API permite filtros servidor; cada detalle enlaza OC, lote/NC, tareas y ledger con identidad/UTC/correlación. Reintentos inciertos de ambos agregados conservan clave y cuerpo tras recarga, sin confundirlos con lotes.
+
+Verificación aislada (crear base una vez y seleccionar JDK21):
+
+```sh
+docker compose -p proco-sprint6 exec -T db psql -U proco -d postgres -c 'CREATE DATABASE proco_sprint6_test'
+TEST_DB_URL=jdbc:postgresql://localhost:55440/proco_sprint6_test mvn -f backend/pom.xml verify
+npm --prefix frontend run build
+E2E_URL=http://127.0.0.1:18096 npm --prefix frontend run test:e2e
+# Solo cuando Maven y navegador hayan terminado:
+python3 scripts/verify-sprint4-restart.py --project proco-sprint6 --url http://127.0.0.1:18096
+```
+
+El script compara también OC/diferencias/casos/enlaces/eventos, además de material/OLA. No reiniciar PostgreSQL mientras Maven usa otra base del mismo contenedor. Detener conservando datos: `docker compose -p proco-sprint6 stop`; volver cuando sea necesario: `docker compose -p proco-sprint6 start`.
+
+S03 queda ejecutable para esta simulación de kg por lote completo; S10 cubre gestión comercial administrativa ficticia. No hay tolerancias contractuales aprobadas, sublotes, transporte/devolución física, baja de inventario, ERP, contabilidad, reserva/consumo ni comunicaciones externas. No se añaden OLA/métricas/exportaciones de estos nuevos casos; los de tareas/material previos permanecen disponibles.

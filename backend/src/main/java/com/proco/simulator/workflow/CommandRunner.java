@@ -57,11 +57,16 @@ public class CommandRunner {
         catch(RuleException ex){audit.deniedExecution(null,false,actor,role,ex.getMessage(),key,fingerprint);throw ex;}
     }
 
+    public <T> T runSupplier(UUID id,boolean discrepancy,UUID key,String actor,String role,String fingerprint,Supplier<T> command,Function<UUID,T> load,Function<T,UUID> identify){
+        try{return transact(key,actor,fingerprint,discrepancy?"discrepancy_id":"supplier_case_id",command,load,identify);}
+        catch(RuleException ex){audit.deniedSupplier(id,discrepancy,actor,role,ex.getMessage(),key,fingerprint);throw ex;}
+    }
+
     private <T> T transact(UUID key,String actor,String fingerprint,String target,
             Supplier<T> command,Function<UUID,T> load,Function<T,UUID> identify) {
         return tx.execute(status -> {
             db.queryForList("select pg_advisory_xact_lock(hashtextextended(?,0))",actor+key);
-            var replay=db.queryForList("select fingerprint,lot_id,mix_id,execution_id,task_id,ola_rule_id from command_result where actor=? and command_key=?",actor,key);
+            var replay=db.queryForList("select fingerprint,lot_id,mix_id,execution_id,task_id,ola_rule_id,discrepancy_id,supplier_case_id from command_result where actor=? and command_key=?",actor,key);
             if(!replay.isEmpty()) {
                 var row=replay.getFirst();
                 require(fingerprint.equals(row.get("fingerprint")) && row.get(target)!=null,409,
