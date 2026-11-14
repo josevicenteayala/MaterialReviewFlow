@@ -1,0 +1,102 @@
+name: Build Windows demo installer
+on:
+  push:
+    branches: ['codex/windows-demo-installer']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  payload:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build Linux amd64 application payload
+        run: packaging/windows/build-images.sh "$RUNNER_TEMP/proco-payload"
+      - name: Verify installed-payload behavior with a separate database
+        run: |
+          dotnet run --project packaging/windows/Proco.Demo.Tests -- --render "$RUNNER_TEMP/proco-payload/manifest.json" "$RUNNER_TEMP/proco-payload/check"
+          python3 packaging/windows/verify-payload.py "$RUNNER_TEMP/proco-payload"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: proco-windows-payload
+          path: |
+            ${{ runner.temp }}/proco-payload/images.tar.gz
+            ${{ runner.temp }}/proco-payload/manifest.json
+            ${{ runner.temp }}/proco-payload/verification.json
+          compression-level: 0
+          retention-days: 14
+  installer:
+    timeout-minutes: 25
+    runs-on: windows-2025
+    needs: payload
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Verify session and runtime policies
+        shell: pwsh
+        run: dotnet run --project packaging/windows/Proco.Demo.Tests -c Release
+      - uses: actions/download-artifact@v4
+        with:
+          name: proco-windows-payload
+          path: packaging/windows/stage/payload
+      - name: Publish self-contained Windows launcher
+        shell: pwsh
+        run: |
+          dotnet publish packaging/windows/Proco.Demo.Launcher -c Release -r win-x64 -o packaging/windows/stage
+          if ($LASTEXITCODE -ne 0) { throw 'Launcher compilation failed' }
+          New-Item -ItemType Directory -Force packaging/windows/stage/manual | Out-Null
+          Copy-Item docs/manual/index.html packaging/windows/stage/manual/index.html
+          Copy-Item packaging/windows/LEEME.html packaging/windows/stage/LEEME.html
+      - name: Exercise native Windows panel and capture UI
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'packaging/windows/stage/PROCO-Demostracion.exe'
+          $p = Start-Process $exe -ArgumentList '--self-test' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Windows UI self-test failed: $($p.ExitCode)" }
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          $locations = @("${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", "$env:ProgramFiles\Inno Setup*\ISCC.exe")
+          $iscc = Get-ChildItem $locations -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          if (!$iscc) {
+            choco install innosetup --yes --no-progress
+            $iscc = Get-ChildItem $locations -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (!$iscc) { throw 'Inno Setup compiler unavailable' }
+          & $iscc ('/DStageDir=' + (Join-Path $PWD 'packaging/windows/stage')) packaging/windows/setup.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - name: Check silent install and uninstall without removing sessions
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem packaging/windows/output/PROCO-*.exe | Select-Object -First 1
+          $dest = Join-Path $env:RUNNER_TEMP 'proco-installed'
+          $p = Start-Process $setup.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', ('/DIR=' + $dest) -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw 'Installation failed' }
+          foreach ($file in @('PROCO-Demostracion.exe','payload/manifest.json','payload/images.tar.gz','manual/index.html')) {
+            if (!(Test-Path (Join-Path $dest $file))) { throw "Missing installed file: $file" }
+          }
+          $p = Start-Process (Join-Path $dest 'PROCO-Demostracion.exe') -ArgumentList '--self-test' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw 'Installed launcher self-test failed' }
+          $state = Join-Path $env:LOCALAPPDATA 'PROCO/Demostracion/test-retained.txt'
+          New-Item -Force -ItemType Directory (Split-Path $state) | Out-Null
+          Set-Content $state 'retain-me'
+          $p = Start-Process (Join-Path $dest 'unins000.exe') -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0 -or !(Test-Path $state)) { throw 'Uninstall did not preserve user data' }
+          Get-ChildItem packaging/windows/output/*.exe | Get-FileHash -Algorithm SHA256 | Format-List | Out-File packaging/windows/output/SHA256.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: PROCO-Demostracion-Windows11-x64
+          path: |
+            packaging/windows/output/*.exe
+            packaging/windows/output/SHA256.txt
+            packaging/windows/stage/launcher-windows.png
+            packaging/windows/stage/launcher-test-error.txt
+            packaging/windows/stage/payload/verification.json
+          compression-level: 0
+          retention-days: 30
