@@ -1,0 +1,153 @@
+{
+  "base": "91688b6",
+  "project": "proco-manual-91688b6",
+  "date": "2026-11-13T23:42:11.033Z",
+  "captures": [
+    {
+      "name": "01-acceso",
+      "caption": "Acceso: selector de cuenta y contraseña de simulación.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "4fb6497ead413e07b06311001a3f0ee13e9987179b0f7351860dbd75254b3832"
+    },
+    {
+      "name": "02-recepcion",
+      "caption": "Almacén: formulario Nueva recepción, antes de confirmar.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "575b1b6f7733b8bb08d9c1ea1f819801b03a6de5c3d3ce49c24428aac4eb582d"
+    },
+    {
+      "name": "03-inspeccion",
+      "caption": "Calidad: inspección documental y siguiente decisión.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "542415ed9d6c75d9563187bb430dd5c21da5858d9b46f77dd02d5408b4fa8c57"
+    },
+    {
+      "name": "04-muestra",
+      "caption": "Almacén: registro de muestra trazable.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "9538bd08e916f599f88a431359f67e48f0db17c5dc8d892fc1f20ed3a3e14199"
+    },
+    {
+      "name": "05-ensayo",
+      "caption": "Técnico: resultado de resistencia; el rango mostrado es ficticio.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "87dd9cca2d05af6c66c059fadda913461124d84e1ce90aa4520468d3ed924d00"
+    },
+    {
+      "name": "06-liberacion",
+      "caption": "Aprobador de Laboratorio: liberación técnica independiente.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "3b7a59a3752feddbcf2c515a8714bc57d2df3e960c0d063f6668b0e2c24a7ed8"
+    },
+    {
+      "name": "07-disponibilidad",
+      "caption": "Almacén: confirmar disponibilidad después de la liberación.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "88e08ceab7c79d769789dd31a68274f1e900659b181dd23d84baa85489d65c4f"
+    },
+    {
+      "name": "08-nc",
+      "caption": "Laboratorio aprobador: expediente NC y dictamen técnico.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "3e5ec205120708dbbd739ca58d357a2e85eb503f132bb53503f638309bfb9c7c"
+    },
+    {
+      "name": "09-diferencia",
+      "caption": "Almacén: cantidades documentadas y observadas separadas.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "6b50475005336e97dc298ec0c7585f63d8773387931659c26caa99717aac5b65"
+    },
+    {
+      "name": "10-autorizar-cantidad",
+      "caption": "Abastecimiento: autorización de cantidad, sin reservar saldo.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "a5a775a04e79a69bc04a8cb4c2d7f3777472f715a6047c6eb0c771d5700e3a4f"
+    },
+    {
+      "name": "11-diferencia-resuelta",
+      "caption": "Aceptación crea lote en cuarentena; el faltante se conserva.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "7e9c338eca6069fc9c9a71ddab3dfcf97df45e45c0cdb91d55b85ace314b1c32"
+    },
+    {
+      "name": "12-mezcla-solicitud",
+      "caption": "Tejeduría: combinación exacta, cantidades y vigencia.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "036162fdfa768a24b2d17a860c0c175497559ac2b70a0079bb14bd8e094a59da"
+    },
+    {
+      "name": "13-conceptos",
+      "caption": "Tintorería: conceptos obligatorios de una mezcla con elastano.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "9fe915b93a42253de9c6918899c546f143eb596ced99461f84fb8a530f686f2b"
+    },
+    {
+      "name": "14-aprobar-mezcla",
+      "caption": "Producción: confirmar autorización o denegación.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "17c63e38dc635ef1b397a3f510688b969324e82f2bf9ce1b37aa44b15cf2c9b8"
+    },
+    {
+      "name": "15-iniciar-montaje",
+      "caption": "Tejeduría: iniciar solo una autorización vigente.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "56e3077686ea8548138febcc68d303671f4c3a93299c67c4b99176e386bf25f2"
+    },
+    {
+      "name": "16-contencion",
+      "caption": "Almacén: montaje suspendido y tarea de su área.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "104bdd291d21f252af6fcbac59ff6fd8d0a6269aab7ee0e304086a903898663d"
+    },
+    {
+      "name": "17-rechazo",
+      "caption": "Calidad: rechazo definitivo con devolución prevista, no física.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "0233bc22a5dc4779d078ff6a953c18c62019753317d87880833f5455e833249b"
+    },
+    {
+      "name": "18-proveedor",
+      "caption": "Abastecimiento: caso comercial y tareas Procurement enlazadas.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "cd2be18f42e1811cb6e6ecb820277fa43a1e93eb75b31a0b1ad6eb9af26d1c62"
+    },
+    {
+      "name": "19-cierre-comercial",
+      "caption": "Segundo usuario de Abastecimiento: cierre administrativo independiente.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "72af2c4122f1abe025a62746404d0359695273a92338be554a174592cbbc3754"
+    },
+    {
+      "name": "20-cierre-incidente",
+      "caption": "Producción: cierre de incidente distinto de producción completada.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "c9124f85a33050c30f59a993f8e4c1fe60cc7aa1c25dc78f3dd3caac82e1994c"
+    },
+    {
+      "name": "21-indicadores",
+      "caption": "GEO: indicadores, alertas y tiempos por área.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "f003d388a552dd72e2b6bace8876fde11b9b382029861c23d3a5535276e1b858"
+    },
+    {
+      "name": "22-ola",
+      "caption": "GEO: reglas OLA DEMO versionadas para tareas futuras.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "893746ce30f79d706e8cc4ed73d955199e342c730ebe659ff343da97f2ded864"
+    },
+    {
+      "name": "23-historico",
+      "caption": "Adopción explícita de rechazo histórico; no es necesaria para rechazos nuevos.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "c13215adf71569ca5fc484a572c28647886ebf70cf8b3a85afaf421cf26251b3"
+    },
+    {
+      "name": "24-reintento",
+      "caption": "Respuesta perdida: reintentar exactamente el mismo comando.",
+      "url": "http://127.0.0.1:18102",
+      "sha256": "62adb41f5d7f54c2dfc662e3a20dbb05ab6ca79fc73b07f55fe31e91c3b7c432"
+    }
+  ],
+  "pageErrors": [],
+  "notes": "Capturas14 y20 reencuadradas en los botones de decisión;14 usa otra solicitud didáctica MANUAL-MONTAJE-02. No se cambió el contenido gráfico."
+}
