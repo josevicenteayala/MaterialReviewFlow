@@ -29,7 +29,7 @@ El workflow `.github/workflows/windows-demo.yml` se ejecuta al publicar la rama 
 
 1. Ubuntu: build de backend/frontend y PostgreSQL con `linux/amd64`; archivo images.tar.gz y manifest.json con IDs/hashes. No monta volúmenes existentes.
 2. Core genera exactamente el Compose del lanzador para un proyecto de verificación único. Se prueba arranque, cinco semillas, siete migraciones, recepción y replay idempotente, parada/arranque y snapshot idéntico de lotes/comandos/auditoría, con red interna de datos, red de presentación para el frontend y sin pull/build.
-3. Windows2022 de CI con SDK10: 30 comprobaciones Core, publish WinForms win-x64 autocontenido; self-test nativo de formulario y captura PNG; compilación Inno Setup.
+3. Windows2025 de CI con SDK10: 30 comprobaciones Core, publish WinForms win-x64 autocontenido; self-test nativo de formulario y captura PNG; compilación Inno Setup.
 4. Instalación silenciosa a una carpeta temporal, self-test del ejecutable instalado, comprobación de archivos, desinstalación y retención de un archivo de datos de usuario. Se publica el EXE, su hash, captura y evidencia del payload como artefacto. No se publica release ni se hace merge automático.
 
 Para compilar el lanzador con un SDK10 (el usuario final no lo necesita):

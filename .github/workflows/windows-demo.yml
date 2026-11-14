@@ -30,7 +30,7 @@ jobs:
           retention-days: 14
   installer:
     timeout-minutes: 25
-    runs-on: windows-2022
+    runs-on: windows-2025
     needs: payload
     steps:
       - uses: actions/checkout@v4
@@ -61,9 +61,13 @@ jobs:
       - name: Compile installer
         shell: pwsh
         run: |
-          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
-          if (!(Test-Path $iscc)) { choco install innosetup --yes --no-progress }
-          if (!(Test-Path $iscc)) { throw 'Inno Setup compiler unavailable' }
+          $locations = @("${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", "$env:ProgramFiles\Inno Setup*\ISCC.exe")
+          $iscc = Get-ChildItem $locations -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          if (!$iscc) {
+            choco install innosetup --yes --no-progress
+            $iscc = Get-ChildItem $locations -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (!$iscc) { throw 'Inno Setup compiler unavailable' }
           & $iscc ('/DStageDir=' + (Join-Path $PWD 'packaging/windows/stage')) packaging/windows/setup.iss
           if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
       - name: Check silent install and uninstall without removing sessions
