@@ -14,6 +14,8 @@ Base funcional: MaterialReviewFlow 91688b6, Sprints 1–6. Manual didáctico en 
 - Revisión visual de portada en escritorio/móvil y de capturas de liberación, caso comercial y cierre de incidente; las capturas14/20 se reencuadraron para mostrar los botones de decisión. No se retocaron sus contenidos.
 - Imágenes, estilos y JavaScript integrados en index.html; el ZIP contiene también capturas fuente y generar.py para mantenerlo.
 
-HTML SHA-256: `4a378a35d9d0be00a5171d04aaea07b0c0def6499a7c8a003e2c2f1fa9421ff7`.
+HTML SHA-256: `8872a164cbe7e289ea72f1ec782a848da1ba00654a74d90a294722ed96de4a33`.
 
 El proyecto exclusivo de capturas se detiene al finalizar conservando su volumen. UAT permanece activo para el usuario. No se cambiaron backend, frontend, migraciones ni reglas de negocio. Los ejemplos del manual no se declaran validación funcional de PROCO.
+
+Actualización del paquete Windows: el capítulo de acceso dirige al presentador al panel Iniciar/Manual y separa los comandos técnicos UAT; se repitieron los controles del HTML con resultado PASS.

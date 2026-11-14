@@ -50,7 +50,8 @@ public sealed class SessionStore(string root)
     }
     public DemoSession Create(string version)
     {
-        var s = new DemoSession(Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLowerInvariant(), "Demostración " + DateTime.Now.ToString("dd/MM/yyyy HH:mm"), FreePort(), Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant(), DateTimeOffset.UtcNow, version);
+        var id = Convert.ToHexString(RandomNumberGenerator.GetBytes(8)).ToLowerInvariant();
+        var s = new DemoSession(id, "Demostración " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " · " + id[..6], FreePort(List().Select(previous => previous.Port).ToHashSet()), Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant(), DateTimeOffset.UtcNow, version);
         s.Validate(); var dir = DirectoryFor(s); Directory.CreateDirectory(dir);
         AtomicWrite(Path.Combine(dir, "session.json"), JsonSerializer.Serialize(s, new JsonSerializerOptions { WriteIndented = true }));
         return s;
@@ -70,10 +71,16 @@ public sealed class SessionStore(string root)
         try { File.WriteAllText(temp, value); File.Move(temp, path, true); }
         finally { if (File.Exists(temp)) File.Delete(temp); }
     }
-    static int FreePort()
+    static int FreePort(HashSet<int> previousPorts)
     {
-        var socket = new TcpListener(IPAddress.Loopback, 0); socket.Start();
-        try { return ((IPEndPoint)socket.LocalEndpoint).Port; } finally { socket.Stop(); }
+        // Never reuse an old browser origin: sessionStorage can hold an uncertain command.
+        for (int i = 0; i < 64; i++)
+        {
+            var socket = new TcpListener(IPAddress.Loopback, 0); socket.Start();
+            int port; try { port = ((IPEndPoint)socket.LocalEndpoint).Port; } finally { socket.Stop(); }
+            if (!previousPorts.Contains(port)) return port;
+        }
+        throw new InvalidOperationException("No se encontró un puerto libre para otra sesión. Detén las aplicaciones locales que no uses y vuelve a intentarlo; no se borraron datos.");
     }
 }
 

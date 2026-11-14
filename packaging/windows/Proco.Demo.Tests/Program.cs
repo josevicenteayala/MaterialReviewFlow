@@ -25,7 +25,7 @@ try
  using var readyClient = new HttpClient(new BootstrapHandler(true));
  Assert(await new ReadinessProbe(readyClient).Ready(new Uri("http://127.0.0.1:18123/")), "readiness waits for synthetic seed identities");
  var store = new SessionStore(root); var s = store.Create(m.Version); var second = store.Create(m.Version);
- Assert(s.Id != second.Id && s.Project != second.Project, "new session preserves distinct namespace");
+ Assert(s.Id != second.Id && s.Project != second.Project && s.Name != second.Name && s.Port != second.Port, "new session preserves distinct namespace, browser origin and visible name");
  Assert(s.Password != second.Password && s.Password.Length == 48, "random database credentials per session");
  Assert(s.Url.Host == "127.0.0.1" && s.Port >= 1024, "localhost URL with persisted usable port");
  Assert(store.List().Count == 2, "creating a session retains previous records");

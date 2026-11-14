@@ -1,6 +1,6 @@
 # Paquete local de demostración PROCO — propuesta
 
-Estado: diseño para facilitadores no técnicos. No es todavía un instalador generado o probado en el portátil destino. Reutiliza la aplicación de Sprints 1–6, PostgreSQL y el manual HTML existentes; no cambia las reglas de negocio.
+Estado: diseño base para facilitadores no técnicos, implementado para Windows11 x64 en `packaging/windows` y PR #7. Consultar allí la evidencia de compilación/instalación. La prueba de Docker Desktop/WSL y operación sin conexión en el portátil destino sigue pendiente. Reutiliza la aplicación de Sprints 1–6, PostgreSQL y el manual HTML existentes; no cambia las reglas de negocio.
 
 ## Experiencia del presentador
 
