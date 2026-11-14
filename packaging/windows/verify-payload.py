@@ -27,7 +27,7 @@ def ready():
     last = 'no response'
     for _ in range(120):
         try:
-            if request('/me')['username'] == 'almacen': return
+            if request('/me')['username'] == 'almacen' and len(request('/lots')) >= 5: return
         except (OSError, urllib.error.URLError) as error: last = str(error)
         time.sleep(1)
     raise AssertionError('Application not ready: ' + last)

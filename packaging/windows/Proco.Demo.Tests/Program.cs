@@ -20,6 +20,10 @@ var image = new ImageSpec("proco-demo:test", "sha256:" + new string('a', 64));
 var m = new DemoManifest("1.0.0-test", new string('b', 40), "linux/amd64", new string('c', 64), image, image, image);
 try
 {
+ using var bootstrapClient = new HttpClient(new BootstrapHandler(false));
+ Assert(!await new ReadinessProbe(bootstrapClient).Ready(new Uri("http://127.0.0.1:18123/")), "HTTP listener alone is not ready before initial seeds");
+ using var readyClient = new HttpClient(new BootstrapHandler(true));
+ Assert(await new ReadinessProbe(readyClient).Ready(new Uri("http://127.0.0.1:18123/")), "readiness waits for synthetic seed identities");
  var store = new SessionStore(root); var s = store.Create(m.Version); var second = store.Create(m.Version);
  Assert(s.Id != second.Id && s.Project != second.Project, "new session preserves distinct namespace");
  Assert(s.Password != second.Password && s.Password.Length == 48, "random database credentials per session");
@@ -83,5 +87,14 @@ sealed class FakeRunner(string imageId) : ICommandRunner
   if (args.Contains("up") && FailUp) code = 1;
   if (args.Contains("logs")) text = Leak;
   return Task.FromResult(new CommandResult(code, text, ""));
+ }
+}
+
+sealed class BootstrapHandler(bool complete) : HttpMessageHandler
+{
+ protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+ {
+  var content = request.RequestUri!.AbsolutePath.EndsWith("/me") ? "{\"username\":\"almacen\",\"role\":\"WAREHOUSE\"}" : complete ? "[{\"supplierLot\":\"HILO-SIM-001\"},{\"supplierLot\":\"ELASTANO-SIM-001\"},{\"supplierLot\":\"HILO-MIX-001\"},{\"supplierLot\":\"HILO-MIX-002\"},{\"supplierLot\":\"ELASTANO-MIX-001\"}]" : "[]";
+  return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(content) });
  }
 }

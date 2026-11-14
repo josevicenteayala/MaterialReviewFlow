@@ -26,9 +26,9 @@ public sealed class ProcessRunner : ICommandRunner
 }
 
 public interface IReadinessProbe { Task<bool> Ready(Uri url); }
-public sealed class ReadinessProbe : IReadinessProbe
+public sealed class ReadinessProbe(HttpClient? providedClient = null) : IReadinessProbe
 {
-    readonly HttpClient client = new(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(3) };
+    readonly HttpClient client = providedClient ?? new(new HttpClientHandler { UseProxy = false, AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(3) };
     public async Task<bool> Ready(Uri url)
     {
         try
@@ -38,7 +38,16 @@ public sealed class ReadinessProbe : IReadinessProbe
             using var response = await client.SendAsync(req);
             if (!response.IsSuccessStatusCode) return false;
             using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-            return json.RootElement.TryGetProperty("username", out var name) && name.GetString() == "almacen" && json.RootElement.TryGetProperty("role", out var role) && role.GetString() == "WAREHOUSE";
+            if (!(json.RootElement.TryGetProperty("username", out var name) && name.GetString() == "almacen" && json.RootElement.TryGetProperty("role", out var role) && role.GetString() == "WAREHOUSE")) return false;
+            // ApplicationRunner creates the synthetic seeds after the HTTP listener starts.
+            using var lotsRequest = new HttpRequestMessage(HttpMethod.Get, new Uri(url, "api/lots"));
+            lotsRequest.Headers.Authorization = req.Headers.Authorization;
+            using var lotsResponse = await client.SendAsync(lotsRequest);
+            if (!lotsResponse.IsSuccessStatusCode) return false;
+            using var lots = JsonDocument.Parse(await lotsResponse.Content.ReadAsStringAsync());
+            if (lots.RootElement.ValueKind != JsonValueKind.Array) return false;
+            var names = lots.RootElement.EnumerateArray().Where(l => l.TryGetProperty("supplierLot", out _)).Select(l => l.GetProperty("supplierLot").GetString()).ToHashSet();
+            return new[] { "HILO-SIM-001", "ELASTANO-SIM-001", "HILO-MIX-001", "HILO-MIX-002", "ELASTANO-MIX-001" }.All(names.Contains);
         }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException or JsonException) { return false; }
     }

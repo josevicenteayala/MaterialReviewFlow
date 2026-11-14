@@ -13,3 +13,4 @@ packaging/**/obj/
 packaging/windows/stage/
 packaging/windows/output/
 docs/Manual_PROCO_SIM-0.2.zip
+artifacts/windows/
