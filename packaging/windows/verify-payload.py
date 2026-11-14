@@ -24,18 +24,22 @@ def request(path, data=None, key=None):
     with http.open(urllib.request.Request(base + path, data=json.dumps(data).encode() if data is not None else None, headers=headers), timeout=10) as r:
         return json.load(r)
 def ready():
+    last = 'no response'
     for _ in range(120):
         try:
             if request('/me')['username'] == 'almacen': return
-        except (OSError, urllib.error.URLError): pass
+        except (OSError, urllib.error.URLError) as error: last = str(error)
         time.sleep(1)
-    raise AssertionError('Application not ready')
+    raise AssertionError('Application not ready: ' + last)
 def snapshot():
     sql = "select jsonb_build_object('lots',(select jsonb_agg(to_jsonb(l) order by id) from lot l),'commands',(select jsonb_agg(to_jsonb(c) order by actor,command_key) from command_result c),'audit',(select jsonb_agg(to_jsonb(a) order by id) from audit_event a))::text"
     return subprocess.check_output(compose + ['exec', '-T', 'db', 'psql', '-U', 'proco', '-d', 'proco', '-At', '-c', sql])
 try:
     rendered = json.loads(subprocess.check_output(compose + ['config', '--format', 'json']))
     assert rendered['networks']['default']['internal'] is True
+    assert set(rendered['services']['frontend']['networks']) == {'default', 'presentation'}
+    assert set(rendered['services']['backend']['networks']) == {'default'}
+    assert set(rendered['services']['db']['networks']) == {'default'}
     assert len([p for s in rendered['services'].values() for p in s.get('ports', [])]) == 1
     for service in rendered['services'].values():
         assert service['pull_policy'] == 'never' and 'build' not in service
@@ -54,9 +58,13 @@ try:
     subprocess.run(compose + ['stop'], check=True)
     subprocess.run(compose + ['up', '-d', '--no-build', '--pull', 'never'], check=True)
     ready(); assert snapshot() == before
-    results = {'result': 'PASS', 'project': project, 'migrations': 7, 'initialLots': 5, 'receiptReplay': 'one lot', 'restartPersistence': 'identical lots/commands/audit', 'snapshotSha256': hashlib.sha256(before).hexdigest(), 'noBuild': True, 'pullPolicy': 'never', 'containerNetwork': 'internal', 'publishedPorts': 1, 'platform': 'linux/amd64', 'note': 'Windows Docker Desktop/WSL offline test still requires target laptop.'}
+    results = {'result': 'PASS', 'project': project, 'migrations': 7, 'initialLots': 5, 'receiptReplay': 'one lot', 'restartPersistence': 'identical lots/commands/audit', 'snapshotSha256': hashlib.sha256(before).hexdigest(), 'noBuild': True, 'pullPolicy': 'never', 'dataNetwork': 'internal', 'presentationNetwork': 'frontend only', 'publishedPorts': 1, 'platform': 'linux/amd64', 'note': 'Windows Docker Desktop/WSL offline test still requires target laptop.'}
     (payload / 'verification.json').write_text(json.dumps(results, indent=2))
     print(json.dumps(results, indent=2))
+except Exception:
+    subprocess.run(compose + ['ps', '--all'], check=False)
+    subprocess.run(compose + ['logs', '--no-color', '--tail', '120'], check=False)
+    raise
 finally:
     # Only this uniquely named CI verification project; no -v, data are not erased by this script.
     subprocess.run(compose + ['stop'], check=False)

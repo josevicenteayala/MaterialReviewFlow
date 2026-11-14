@@ -116,6 +116,9 @@ services:
     pull_policy: never
     depends_on:
       - backend
+    networks:
+      - default
+      - presentation
     ports:
       - '127.0.0.1:{{s.Port}}:80'
 volumes:
@@ -123,6 +126,7 @@ volumes:
 networks:
   default:
     internal: true
+  presentation: {}
 """;
     }
 }
